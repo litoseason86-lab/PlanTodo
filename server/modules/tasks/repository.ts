@@ -20,5 +20,5 @@ export interface TaskRepository {
   getById(taskId: number, userId: number): Task | undefined;
   create(input: CreateTaskInput): Task;
   updateStatus(taskId: number, userId: number, status: TaskStatus): Task | undefined;
+  remove(taskId: number, userId: number): boolean;
 }
-

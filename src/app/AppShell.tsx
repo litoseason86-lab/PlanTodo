@@ -293,6 +293,30 @@ export default function AppShell() {
     }
   }
 
+  async function handleDeleteTask(task: Task) {
+    if (!window.confirm(`确定删除「${task.title}」？关联专注记录也会同步删除。`)) return;
+
+    try {
+      setLoading(true);
+      await tasksApi.deleteTask(task.id);
+      if (runningSession?.taskId === task.id) {
+        setRunningSession(null);
+      }
+      if (lastFinishedSessionTask?.id === task.id) {
+        setLastFinishedSessionTask(null);
+      }
+      showToast('任务已删除');
+      await loadTasksForSelectedDate();
+      setAllTasks(await tasksApi.getTasks());
+      if (activeTab === 'daily') void loadDailyStats();
+      if (activeTab === 'weekly') void loadWeeklyStats();
+    } catch (err) {
+      showToast(getErrorMessage(err, '删除任务失败'), 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleStartSession(task: Task) {
     try {
       setLoading(true);
@@ -568,6 +592,7 @@ export default function AppShell() {
             handleCreateTask={handleCreateTask}
             handleUpdateTaskStatus={handleUpdateTaskStatus}
             handleStartSession={handleStartSession}
+            handleDeleteTask={handleDeleteTask}
           />
         )}
         {activeTab === 'categories' && (

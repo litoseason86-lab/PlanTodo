@@ -23,5 +23,16 @@ describe('requestJson', () => {
       message: 'duplicate',
     });
   });
-});
 
+  it('returns undefined for empty success responses', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 204,
+      }),
+    );
+
+    await expect(requestJson('/api/tasks/1', {method: 'DELETE'})).resolves.toBeUndefined();
+  });
+});

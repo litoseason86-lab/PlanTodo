@@ -59,6 +59,7 @@ describe('TasksPanel', () => {
         handleCreateTask={onCreateTask}
         handleUpdateTaskStatus={vi.fn()}
         handleStartSession={vi.fn()}
+        handleDeleteTask={vi.fn()}
       />,
     );
 
@@ -97,6 +98,7 @@ describe('TasksPanel', () => {
         handleCreateTask={vi.fn()}
         handleUpdateTaskStatus={onUpdateTaskStatus}
         handleStartSession={onStartSession}
+        handleDeleteTask={vi.fn()}
       />,
     );
 
@@ -106,5 +108,43 @@ describe('TasksPanel', () => {
 
     expect(onStartSession).toHaveBeenCalledWith(baseTasks[0]);
     expect(onUpdateTaskStatus).not.toHaveBeenCalled();
+  });
+
+  it('calls the delete handler from a task row', () => {
+    const onDeleteTask = vi.fn();
+
+    render(
+      <TasksPanel
+        styleContext={{
+          primary: '#fb7185',
+          primaryLight: '#fff1f2',
+          secondary: '#fda4af',
+        }}
+        categories={baseCategories}
+        allTasks={baseTasks}
+        filteredTaskItems={baseTasks}
+        selectedDate="2026-06-05"
+        taskFormTitle=""
+        taskFormCategory={1}
+        taskFormDate="2026-06-05"
+        taskFilterCategory="all"
+        taskFilterStatus="all"
+        taskFilterDateScope="today"
+        setTaskFormTitle={vi.fn()}
+        setTaskFormCategory={vi.fn()}
+        setTaskFormDate={vi.fn()}
+        setTaskFilterCategory={vi.fn()}
+        setTaskFilterStatus={vi.fn()}
+        setTaskFilterDateScope={vi.fn()}
+        handleCreateTask={vi.fn()}
+        handleUpdateTaskStatus={vi.fn()}
+        handleStartSession={vi.fn()}
+        handleDeleteTask={onDeleteTask}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', {name: '删除任务 写周报'}));
+
+    expect(onDeleteTask).toHaveBeenCalledWith(baseTasks[0]);
   });
 });

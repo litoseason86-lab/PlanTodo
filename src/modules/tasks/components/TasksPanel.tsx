@@ -1,6 +1,6 @@
 import type React from 'react';
 
-import {Calendar, ListTodo, Plus} from 'lucide-react';
+import {Calendar, ListTodo, Plus, Trash2} from 'lucide-react';
 
 import type {Category, Task} from '../../../../shared/domain/entities';
 import type {TaskStatus} from '../../../../shared/domain/status';
@@ -30,6 +30,7 @@ interface TasksPanelProps {
   handleCreateTask: (event?: React.FormEvent) => void;
   handleUpdateTaskStatus: (id: number, status: TaskStatus) => void;
   handleStartSession: (task: Task) => void;
+  handleDeleteTask: (task: Task) => void;
 }
 
 export function TasksPanel({
@@ -53,6 +54,7 @@ export function TasksPanel({
   handleCreateTask,
   handleUpdateTaskStatus,
   handleStartSession,
+  handleDeleteTask,
 }: TasksPanelProps) {
   return (
     <div className="space-y-6" id="tasks_view">
@@ -229,6 +231,16 @@ export function TasksPanel({
                           ▶ 专注
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        aria-label={`删除任务 ${task.title}`}
+                        title="删除任务"
+                        onClick={() => handleDeleteTask(task)}
+                        className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 );

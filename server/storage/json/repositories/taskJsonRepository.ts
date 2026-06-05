@@ -59,5 +59,19 @@ export class TaskJsonRepository implements TaskRepository {
       return task;
     });
   }
-}
 
+  remove(taskId: number, userId: number): boolean {
+    return this.store.update((data) => {
+      const index = data.tasks.findIndex((task) => task.id === taskId && task.userId === userId);
+      if (index === -1) {
+        return false;
+      }
+
+      data.tasks.splice(index, 1);
+      data.taskExecutionSessions = data.taskExecutionSessions.filter((session) => {
+        return !(session.taskId === taskId && session.userId === userId);
+      });
+      return true;
+    });
+  }
+}

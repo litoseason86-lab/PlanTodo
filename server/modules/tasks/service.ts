@@ -71,5 +71,11 @@ export class TasksService {
 
     return updated;
   }
-}
 
+  delete(taskId: number, userId: number) {
+    const removed = this.tasks.remove(taskId, userId);
+    if (!removed) {
+      throw new AppError(404, 'Task not found');
+    }
+  }
+}

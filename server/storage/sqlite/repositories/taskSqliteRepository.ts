@@ -54,4 +54,13 @@ export class TaskSqliteRepository implements TaskRepository {
     }
     return this.getById(taskId, userId);
   }
+
+  remove(taskId: number, userId: number): boolean {
+    const removeTask = this.db.transaction(() => {
+      this.db.prepare('delete from task_execution_sessions where task_id = ? and user_id = ?').run(taskId, userId);
+      return this.db.prepare('delete from tasks where id = ? and user_id = ?').run(taskId, userId).changes > 0;
+    });
+
+    return removeTask();
+  }
 }

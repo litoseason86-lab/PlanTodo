@@ -47,6 +47,15 @@ export function buildTaskRoutes(service: TasksService): Router {
     }
   });
 
+  router.delete('/tasks/:id', (req, res) => {
+    try {
+      const id = parseTaskId(req.params.id);
+      service.delete(id, DEMO_USER_ID);
+      res.status(204).send();
+    } catch (error) {
+      handleHttpError(res, error);
+    }
+  });
+
   return router;
 }
-

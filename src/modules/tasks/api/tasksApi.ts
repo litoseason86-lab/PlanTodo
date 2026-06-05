@@ -26,5 +26,10 @@ export const tasksApi = {
       body: JSON.stringify({status}),
     });
   },
-};
 
+  deleteTask(id: number): Promise<void> {
+    return requestJson<void>(`/api/tasks/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};

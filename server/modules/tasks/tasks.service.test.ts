@@ -10,6 +10,7 @@ describe('TasksService', () => {
         getById: vi.fn(),
         create: vi.fn(),
         updateStatus: vi.fn(),
+        remove: vi.fn(),
       },
       {
         getById: () => undefined,
@@ -37,6 +38,7 @@ describe('TasksService', () => {
         getById: vi.fn(),
         create: vi.fn(),
         updateStatus: vi.fn(),
+        remove: vi.fn(),
       },
       {
         getById: () => ({
@@ -58,5 +60,49 @@ describe('TasksService', () => {
 
     expect(() => service.updateStatus(1, 1, 'IN_PROGRESS')).toThrow('focus session start endpoint');
   });
-});
 
+  it('deletes an existing task through the repository', () => {
+    const remove = vi.fn(() => true);
+    const service = new TasksService(
+      {
+        listByFilters: vi.fn(),
+        getById: vi.fn(),
+        create: vi.fn(),
+        updateStatus: vi.fn(),
+        remove,
+      },
+      {
+        getById: vi.fn(),
+      },
+      {
+        getRunningByUser: vi.fn(),
+        stop: vi.fn(),
+      },
+    );
+
+    service.delete(12, 1);
+
+    expect(remove).toHaveBeenCalledWith(12, 1);
+  });
+
+  it('rejects deleting a missing task', () => {
+    const service = new TasksService(
+      {
+        listByFilters: vi.fn(),
+        getById: vi.fn(),
+        create: vi.fn(),
+        updateStatus: vi.fn(),
+        remove: vi.fn(() => false),
+      },
+      {
+        getById: vi.fn(),
+      },
+      {
+        getRunningByUser: vi.fn(),
+        stop: vi.fn(),
+      },
+    );
+
+    expect(() => service.delete(999, 1)).toThrow('Task not found');
+  });
+});

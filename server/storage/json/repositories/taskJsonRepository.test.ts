@@ -110,4 +110,60 @@ describe('TaskJsonRepository', () => {
     });
     expect(repository.getById(task.id, 1)?.status).toBe('DONE');
   });
+
+  it('removes a task and its execution sessions', () => {
+    const filePath = createTempFilePath();
+    const store = new JsonFileStore(filePath);
+    const schema = createEmptyDatabaseSchema();
+    schema.tasks = [
+      {
+        id: 1,
+        userId: 1,
+        categoryId: 1,
+        title: 'Task A',
+        plannedDate: '2026-06-05',
+        status: 'TODO',
+        createdAt: '2026-06-05T08:00:00.000Z',
+        updatedAt: '2026-06-05T08:00:00.000Z',
+      },
+      {
+        id: 2,
+        userId: 1,
+        categoryId: 1,
+        title: 'Task B',
+        plannedDate: '2026-06-05',
+        status: 'TODO',
+        createdAt: '2026-06-05T09:00:00.000Z',
+        updatedAt: '2026-06-05T09:00:00.000Z',
+      },
+    ];
+    schema.taskExecutionSessions = [
+      {
+        id: 1,
+        taskId: 1,
+        userId: 1,
+        startedAt: '2026-06-05T08:00:00.000Z',
+        status: 'RUNNING',
+        createdAt: '2026-06-05T08:00:00.000Z',
+      },
+      {
+        id: 2,
+        taskId: 2,
+        userId: 1,
+        startedAt: '2026-06-05T09:00:00.000Z',
+        status: 'RUNNING',
+        createdAt: '2026-06-05T09:00:00.000Z',
+      },
+    ];
+    store.write(schema);
+
+    const repository = new TaskJsonRepository(store);
+
+    expect(repository.remove(1, 1)).toBe(true);
+    expect(repository.remove(99, 1)).toBe(false);
+
+    const data = store.read();
+    expect(data.tasks.map((task) => task.id)).toEqual([2]);
+    expect(data.taskExecutionSessions.map((session) => session.id)).toEqual([2]);
+  });
 });
