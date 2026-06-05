@@ -45,6 +45,7 @@ import {THEME_STYLES, type ThemeId} from './app/theme';
 import {categoriesApi} from './modules/categories/api/categoriesApi';
 import {tasksApi} from './modules/tasks/api/tasksApi';
 import {focusApi} from './modules/focus/api/focusApi';
+import {filterTasks} from './modules/tasks/controllers/useTasksController';
 
 const PRESET_COLORS = [
   { hex: '#fb7185', label: '樱花粉' },
@@ -567,6 +568,13 @@ export default function App() {
     } else {
       tempStreak = 0;
     }
+  });
+
+  const filteredTaskItems = filterTasks(allTasks, {
+    category: taskFilterCategory,
+    status: taskFilterStatus as 'all' | TaskStatus,
+    dateScope: taskFilterDateScope,
+    selectedDate,
   });
 
   return (
@@ -1216,20 +1224,7 @@ export default function App() {
                 {/* Task list */}
                 <div className="bg-white border border-slate-200/60 rounded-2xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
                   <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
-                    {allTasks.filter(t => {
-                      if (taskFilterCategory !== 'all' && t.categoryId !== Number(taskFilterCategory)) return false;
-                      if (taskFilterStatus !== 'all' && t.status !== taskFilterStatus) return false;
-                      
-                      if (taskFilterDateScope === 'today') {
-                        if (t.plannedDate !== selectedDate) return false;
-                      } else if (taskFilterDateScope === 'seven-days') {
-                        const planned = new Date(t.plannedDate).getTime();
-                        const todayMs = new Date(selectedDate).getTime();
-                        const limitMs = todayMs + 7 * 24 * 60 * 60 * 1000;
-                        if (planned < todayMs || planned > limitMs) return false;
-                      }
-                      return true;
-                    }).map(t => {
+                    {filteredTaskItems.map(t => {
                       const cat = categories.find(c => c.id === t.categoryId);
                       const isComplete = t.status === 'DONE';
                       return (
