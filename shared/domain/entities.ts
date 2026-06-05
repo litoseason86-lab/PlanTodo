@@ -35,6 +35,8 @@ export interface TaskExecutionSession {
   startedAt: string;
   endedAt?: string;
   durationSeconds?: number;
+  pausedAt?: string;
+  accumulatedPauseSeconds?: number;
   status: SessionStatus;
   createdAt: string;
   taskTitle?: string;

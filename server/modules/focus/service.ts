@@ -58,5 +58,22 @@ export class FocusService {
 
     return session;
   }
-}
 
+  pause(input: {sessionId: number; userId: number}) {
+    const session = this.sessions.pause(input);
+    if (!session) {
+      throw new AppError(400, 'Session is not running.');
+    }
+
+    return session;
+  }
+
+  resume(input: {sessionId: number; userId: number}) {
+    const session = this.sessions.resume(input);
+    if (!session) {
+      throw new AppError(400, 'Session is not paused.');
+    }
+
+    return session;
+  }
+}

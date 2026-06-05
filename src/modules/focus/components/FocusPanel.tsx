@@ -1,4 +1,4 @@
-import {Square} from 'lucide-react';
+import {Pause, Play, Square} from 'lucide-react';
 
 import type {TaskExecutionSession} from '../../../../shared/domain/entities';
 
@@ -13,6 +13,8 @@ interface FocusPanelProps {
   formattedElapsed: string;
   progressOffset: number;
   handleStopSession: () => void;
+  handlePauseSession: () => void;
+  handleResumeSession: () => void;
 }
 
 export function FocusPanel({
@@ -21,7 +23,11 @@ export function FocusPanel({
   formattedElapsed,
   progressOffset,
   handleStopSession,
+  handlePauseSession,
+  handleResumeSession,
 }: FocusPanelProps) {
+  const isPaused = runningSession.status === 'PAUSED';
+
   return (
     <div className="min-h-[550px] max-w-lg mx-auto flex flex-col items-center justify-center space-y-10 py-10 fade-in-up" id="focus_stopwatch_view">
       <div className="text-center space-y-3">
@@ -33,10 +39,10 @@ export function FocusPanel({
             border: `2px solid ${styleContext.secondary}`,
           }}
         >
-          🔥 专注中
+          {isPaused ? '⏸ 已暂停' : '🔥 专注中'}
         </span>
 
-        <h2 className="text-lg font-bold text-slate-700 tracking-tight mt-3">正在专注</h2>
+        <h2 className="text-lg font-bold text-slate-700 tracking-tight mt-3">{isPaused ? '专注已暂停' : '正在专注'}</h2>
         <p
           className="text-sm font-bold px-6 py-3 rounded-2xl max-w-md mx-auto truncate mt-2 border"
           style={{
@@ -84,16 +90,40 @@ export function FocusPanel({
       </div>
 
       <div className="w-full flex flex-col items-center gap-4">
-        <button
-          onClick={handleStopSession}
-          className="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs py-4 rounded-2xl transition-all border-2 flex items-center justify-center gap-2.5 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.99]"
-          style={{borderColor: styleContext.primary}}
-        >
-          <Square className="w-3.5 h-3.5 fill-current" style={{color: styleContext.primary}} />
-          <span>停止并记录专注时长</span>
-        </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+          {isPaused ? (
+            <button
+              onClick={handleResumeSession}
+              className="w-full text-white font-bold text-xs py-4 rounded-2xl transition-all flex items-center justify-center gap-2.5 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.99]"
+              style={{backgroundColor: styleContext.primary}}
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>继续专注</span>
+            </button>
+          ) : (
+            <button
+              onClick={handlePauseSession}
+              className="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs py-4 rounded-2xl transition-all border-2 flex items-center justify-center gap-2.5 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.99]"
+              style={{borderColor: styleContext.secondary}}
+            >
+              <Pause className="w-3.5 h-3.5 fill-current" style={{color: styleContext.primary}} />
+              <span>暂停专注</span>
+            </button>
+          )}
 
-        <p className="text-xs text-slate-400 font-semibold tracking-wide">深呼吸，保持节奏</p>
+          <button
+            onClick={handleStopSession}
+            className="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs py-4 rounded-2xl transition-all border-2 flex items-center justify-center gap-2.5 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.99]"
+            style={{borderColor: styleContext.primary}}
+          >
+            <Square className="w-3.5 h-3.5 fill-current" style={{color: styleContext.primary}} />
+            <span>停止并记录专注时长</span>
+          </button>
+        </div>
+
+        <p className="text-xs text-slate-400 font-semibold tracking-wide">
+          {isPaused ? '暂停期间不计入专注时长' : '深呼吸，保持节奏'}
+        </p>
       </div>
     </div>
   );

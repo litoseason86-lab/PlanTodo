@@ -29,6 +29,8 @@ export interface SessionRow {
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;
+  paused_at: string | null;
+  accumulated_pause_seconds: number | null;
   status: string;
   created_at: string;
   task_title: string | null;
@@ -88,6 +90,8 @@ export function mapSessionRow(row: SessionRow): TaskExecutionSession {
     startedAt: row.started_at,
     endedAt: row.ended_at ?? undefined,
     durationSeconds: row.duration_seconds ?? undefined,
+    pausedAt: row.paused_at ?? undefined,
+    accumulatedPauseSeconds: row.accumulated_pause_seconds ?? undefined,
     status: row.status as SessionStatus,
     createdAt: row.created_at,
     taskTitle: row.task_title ?? undefined,

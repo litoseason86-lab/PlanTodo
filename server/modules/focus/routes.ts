@@ -45,6 +45,24 @@ export function buildFocusRoutes(service: FocusService): Router {
     }
   });
 
+  router.post('/task-sessions/:sessionId/pause', (req, res) => {
+    try {
+      const sessionId = parseSessionId(req.params.sessionId);
+      res.json(service.pause({sessionId, userId: DEMO_USER_ID}));
+    } catch (error) {
+      handleHttpError(res, error);
+    }
+  });
+
+  router.post('/task-sessions/:sessionId/resume', (req, res) => {
+    try {
+      const sessionId = parseSessionId(req.params.sessionId);
+      res.json(service.resume({sessionId, userId: DEMO_USER_ID}));
+    } catch (error) {
+      handleHttpError(res, error);
+    }
+  });
+
   router.get('/tasks/:taskId/sessions', (req, res) => {
     try {
       const taskId = parseTaskId(req.params.taskId);
@@ -56,4 +74,3 @@ export function buildFocusRoutes(service: FocusService): Router {
 
   return router;
 }
-

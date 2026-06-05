@@ -1,6 +1,8 @@
 import type {
   CreateRunningSessionInput,
   FocusSessionRepository,
+  PauseSessionInput,
+  ResumeSessionInput,
   StopSessionInput,
 } from '../../../modules/focus/repository';
 import type {TaskExecutionSession} from '../../../../shared/domain/entities';
@@ -10,16 +12,33 @@ function completeSession(
   session: TaskExecutionSession,
   endedAt: string,
 ): TaskExecutionSession {
+  const accumulatedPauseSeconds = session.accumulatedPauseSeconds ?? 0;
+  const activePauseSeconds =
+    session.status === 'PAUSED' && session.pausedAt
+      ? Math.max(0, Math.round((new Date(endedAt).getTime() - new Date(session.pausedAt).getTime()) / 1000))
+      : 0;
   const durationSeconds = Math.max(
     0,
-    Math.round((new Date(endedAt).getTime() - new Date(session.startedAt).getTime()) / 1000),
+    Math.round((new Date(endedAt).getTime() - new Date(session.startedAt).getTime()) / 1000)
+      - accumulatedPauseSeconds
+      - activePauseSeconds,
   );
 
   session.endedAt = endedAt;
   session.durationSeconds = durationSeconds;
+  session.accumulatedPauseSeconds = accumulatedPauseSeconds + activePauseSeconds;
+  session.pausedAt = undefined;
   session.status = 'COMPLETED';
 
   return session;
+}
+
+function findSession(
+  sessions: TaskExecutionSession[],
+  sessionId: number,
+  userId: number,
+): TaskExecutionSession | undefined {
+  return sessions.find((item) => item.id === sessionId && item.userId === userId);
 }
 
 export class FocusSessionJsonRepository implements FocusSessionRepository {
@@ -27,7 +46,7 @@ export class FocusSessionJsonRepository implements FocusSessionRepository {
 
   getRunningByUser(userId: number): TaskExecutionSession | undefined {
     return this.store.read().taskExecutionSessions.find((session) => {
-      return session.userId === userId && session.status === 'RUNNING';
+      return session.userId === userId && (session.status === 'RUNNING' || session.status === 'PAUSED');
     });
   }
 
@@ -59,6 +78,7 @@ export class FocusSessionJsonRepository implements FocusSessionRepository {
         userId: input.userId,
         startedAt,
         status: 'RUNNING',
+        accumulatedPauseSeconds: 0,
         createdAt: startedAt,
       };
       data.taskExecutionSessions.push(session);
@@ -66,12 +86,43 @@ export class FocusSessionJsonRepository implements FocusSessionRepository {
     });
   }
 
+  pause(input: PauseSessionInput): TaskExecutionSession | undefined {
+    return this.store.update((data) => {
+      const session = findSession(data.taskExecutionSessions, input.sessionId, input.userId);
+      if (!session || session.status !== 'RUNNING') {
+        return undefined;
+      }
+
+      session.status = 'PAUSED';
+      session.pausedAt = input.pausedAt ?? new Date().toISOString();
+      session.accumulatedPauseSeconds = session.accumulatedPauseSeconds ?? 0;
+      return session;
+    });
+  }
+
+  resume(input: ResumeSessionInput): TaskExecutionSession | undefined {
+    return this.store.update((data) => {
+      const session = findSession(data.taskExecutionSessions, input.sessionId, input.userId);
+      if (!session || session.status !== 'PAUSED' || !session.pausedAt) {
+        return undefined;
+      }
+
+      const resumedAt = input.resumedAt ?? new Date().toISOString();
+      const pauseSeconds = Math.max(
+        0,
+        Math.round((new Date(resumedAt).getTime() - new Date(session.pausedAt).getTime()) / 1000),
+      );
+      session.accumulatedPauseSeconds = (session.accumulatedPauseSeconds ?? 0) + pauseSeconds;
+      session.pausedAt = undefined;
+      session.status = 'RUNNING';
+      return session;
+    });
+  }
+
   stop(input: StopSessionInput): TaskExecutionSession | undefined {
     return this.store.update((data) => {
-      const session = data.taskExecutionSessions.find((item) => {
-        return item.id === input.sessionId && item.userId === input.userId;
-      });
-      if (!session || session.status !== 'RUNNING') {
+      const session = findSession(data.taskExecutionSessions, input.sessionId, input.userId);
+      if (!session || (session.status !== 'RUNNING' && session.status !== 'PAUSED')) {
         return undefined;
       }
 
@@ -79,4 +130,3 @@ export class FocusSessionJsonRepository implements FocusSessionRepository {
     });
   }
 }
-

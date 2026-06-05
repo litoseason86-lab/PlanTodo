@@ -51,11 +51,17 @@ describe('sqlite row mappers', () => {
         started_at: '2026-06-05T01:00:00.000Z',
         ended_at: null,
         duration_seconds: null,
+        paused_at: '2026-06-05T01:10:00.000Z',
+        accumulated_pause_seconds: 60,
         status: 'RUNNING',
         created_at: '2026-06-05T01:00:00.000Z',
         task_title: null,
-      }).endedAt,
-    ).toBeUndefined();
+      }),
+    ).toMatchObject({
+      endedAt: undefined,
+      pausedAt: '2026-06-05T01:10:00.000Z',
+      accumulatedPauseSeconds: 60,
+    });
 
     expect(
       mapDailyReportRow({

@@ -25,8 +25,19 @@ export const focusApi = {
     });
   },
 
+  pauseSession(sessionId: number): Promise<TaskExecutionSession> {
+    return requestJson<TaskExecutionSession>(`/api/task-sessions/${sessionId}/pause`, {
+      method: 'POST',
+    });
+  },
+
+  resumeSession(sessionId: number): Promise<TaskExecutionSession> {
+    return requestJson<TaskExecutionSession>(`/api/task-sessions/${sessionId}/resume`, {
+      method: 'POST',
+    });
+  },
+
   getSessionsByTask(taskId: number): Promise<TaskExecutionSession[]> {
     return requestJson<TaskExecutionSession[]>(`/api/tasks/${taskId}/sessions`);
   },
 };
-

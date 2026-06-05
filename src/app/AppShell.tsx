@@ -33,6 +33,7 @@ import {THEME_STYLES, type ThemeId} from './theme';
 import {tasksApi} from '../modules/tasks/api/tasksApi';
 import {filterTasks} from '../modules/tasks/controllers/useTasksController';
 import {TasksPanel} from '../modules/tasks/components/TasksPanel';
+import {calculateEffectiveFocusSeconds} from '../modules/focus/controllers/useFocusController';
 
 const PRESET_COLORS = [
   {hex: '#fb7185', label: '樱花粉'},
@@ -108,9 +109,11 @@ export default function AppShell() {
 
   useEffect(() => {
     if (runningSession) {
-      const startMs = new Date(runningSession.startedAt).getTime();
-      const calculateDiff = () => Math.max(0, Math.round((Date.now() - startMs) / 1000));
+      const calculateDiff = () => calculateEffectiveFocusSeconds(runningSession);
       setFocusTimeElapsed(calculateDiff());
+      if (runningSession.status === 'PAUSED') {
+        return undefined;
+      }
       timerRef.current = setInterval(() => setFocusTimeElapsed(calculateDiff()), 1000);
       return () => {
         if (timerRef.current) {
@@ -357,6 +360,36 @@ export default function AppShell() {
     }
   }
 
+  async function handlePauseSession() {
+    if (!runningSession) return;
+    try {
+      setLoading(true);
+      const paused = await focusApi.pauseSession(runningSession.id);
+      setRunningSession(paused);
+      setFocusTimeElapsed(calculateEffectiveFocusSeconds(paused));
+      showToast('专注已暂停，暂停时间不会计入统计');
+    } catch (err) {
+      showToast(getErrorMessage(err, '暂停专注失败'), 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResumeSession() {
+    if (!runningSession) return;
+    try {
+      setLoading(true);
+      const resumed = await focusApi.resumeSession(runningSession.id);
+      setRunningSession(resumed);
+      setFocusTimeElapsed(calculateEffectiveFocusSeconds(resumed));
+      showToast('继续专注');
+    } catch (err) {
+      showToast(getErrorMessage(err, '继续专注失败'), 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function loadDailyStats() {
     setDailyStatsLoaded(false);
     try {
@@ -534,8 +567,8 @@ export default function AppShell() {
                   activeTab === 'focus' ? 'bg-rose-500 text-white shadow-md shadow-rose-200/50' : 'bg-rose-50/80 text-rose-500 hover:bg-rose-100/80'
                 }`}
               >
-                <Timer className="w-3.5 h-3.5 animate-spin" />
-                <span>专注中</span>
+                <Timer className={`w-3.5 h-3.5 ${runningSession.status === 'PAUSED' ? '' : 'animate-spin'}`} />
+                <span>{runningSession.status === 'PAUSED' ? '已暂停' : '专注中'}</span>
               </button>
             )}
           </nav>
@@ -645,6 +678,8 @@ export default function AppShell() {
             formattedElapsed={focusController.formattedElapsed}
             progressOffset={focusController.progressOffset}
             handleStopSession={handleStopSession}
+            handlePauseSession={handlePauseSession}
+            handleResumeSession={handleResumeSession}
           />
         )}
       </main>

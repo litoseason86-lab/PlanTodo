@@ -2,7 +2,7 @@ export const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE', 'NOT_DONE'] as cons
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
-export const SESSION_STATUSES = ['RUNNING', 'COMPLETED', 'CANCELLED'] as const;
+export const SESSION_STATUSES = ['RUNNING', 'PAUSED', 'COMPLETED', 'CANCELLED'] as const;
 
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 

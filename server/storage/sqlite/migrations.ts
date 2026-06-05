@@ -94,6 +94,14 @@ const migrations: Migration[] = [
       on conflict(id) do nothing;
     `,
   },
+  {
+    version: 2,
+    name: 'focus_pause_resume',
+    sql: `
+      alter table task_execution_sessions add column paused_at text;
+      alter table task_execution_sessions add column accumulated_pause_seconds integer not null default 0;
+    `,
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {
