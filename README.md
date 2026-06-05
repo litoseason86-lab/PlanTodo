@@ -1,6 +1,6 @@
 # PlanTode
 
-PlanTode 是一个本地单用户计划管理工具，当前采用 `React + Express`，并支持 JSON 与 SQLite 两种本地存储。
+PlanTode 是一个本地单用户计划管理工具，当前采用 `React + Express`。
 
 ## 开发命令
 
@@ -27,7 +27,7 @@ PlanTode 是一个本地单用户计划管理工具，当前采用 `React + Expr
 
 ## 持久化说明
 
-业务逻辑通过仓储接口访问数据，不直接依赖底层存储结构。
+SQLite 是事实来源。业务逻辑通过仓储接口访问数据，不直接依赖底层存储结构。
 
 ## 存储驱动
 
@@ -38,7 +38,7 @@ STORAGE_DRIVER=sqlite
 SQLITE_DB_PATH=data/plantode.sqlite
 ```
 
-也可以切换到 JSON：
+JSON 只是辅助，主要用于历史数据迁移、导入导出或本地 fallback 校验。确需调试 JSON 存储时可以显式切换：
 
 ```bash
 STORAGE_DRIVER=json

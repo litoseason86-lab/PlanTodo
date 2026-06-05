@@ -2,6 +2,7 @@ import {CalendarRange, Loader2} from 'lucide-react';
 import {Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 
 import type {Task, TaskExecutionSession} from '../../../../shared/domain/entities';
+import {getIsoDateWeekday} from '../../../../shared/lib/date';
 
 interface WeeklyTimelineRow {
   day: string;
@@ -178,11 +179,10 @@ export function WeeklyReviewPanel({
 
               <div className="grid grid-cols-7 gap-3 py-6 select-none">
                 {metrics.weeklyDaysData.map((dayData) => {
-                  const date = new Date(dayData.day);
                   const weekdayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
                   const achieved =
                     dayData.tasks.length > 0 &&
-                    dayData.tasks.filter((task) => task.status === 'DONE').length >= Math.ceil(dayData.tasks.length / 2);
+                    dayData.tasks.every((task) => task.status === 'DONE');
                   const minutes = Math.round(
                     dayData.sessions
                       .filter((session) => session.status === 'COMPLETED')
@@ -196,7 +196,7 @@ export function WeeklyReviewPanel({
                         achieved ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-400'
                       }`}
                     >
-                      <span className="text-[9px] font-black tracking-widest block opacity-70 uppercase">{weekdayLabels[date.getDay()]}</span>
+                      <span className="text-[9px] font-black tracking-widest block opacity-70 uppercase">{weekdayLabels[getIsoDateWeekday(dayData.day)]}</span>
                       <span className="text-[11px] font-mono font-black mt-1 block">{dayData.day.slice(5)}</span>
                       <div className={`mt-3 mx-auto w-3.5 h-3.5 rounded-full flex items-center justify-center ${achieved ? 'bg-emerald-400 animate-pulse' : 'bg-slate-300'}`} />
                       <span className="text-[9px] font-bold block mt-1.5 opacity-80">{minutes}m</span>

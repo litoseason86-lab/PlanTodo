@@ -76,4 +76,72 @@ describe('buildWeeklyReviewMetrics', () => {
       rate: 100,
     });
   });
+
+  it('counts a streak day only when all tasks for that day are done', () => {
+    const result = buildWeeklyReviewMetrics({
+      categories: [],
+      weeklyDaysData: [
+        {
+          day: '2026-06-01',
+          tasks: [
+            {
+              id: 1,
+              userId: 1,
+              categoryId: 1,
+              title: 'A',
+              plannedDate: '2026-06-01',
+              status: 'DONE',
+              createdAt: '',
+              updatedAt: '',
+            },
+            {
+              id: 2,
+              userId: 1,
+              categoryId: 1,
+              title: 'B',
+              plannedDate: '2026-06-01',
+              status: 'TODO',
+              createdAt: '',
+              updatedAt: '',
+            },
+          ],
+          sessions: [],
+        },
+        {
+          day: '2026-06-02',
+          tasks: [
+            {
+              id: 3,
+              userId: 1,
+              categoryId: 1,
+              title: 'C',
+              plannedDate: '2026-06-02',
+              status: 'DONE',
+              createdAt: '',
+              updatedAt: '',
+            },
+          ],
+          sessions: [],
+        },
+        {
+          day: '2026-06-03',
+          tasks: [
+            {
+              id: 4,
+              userId: 1,
+              categoryId: 1,
+              title: 'D',
+              plannedDate: '2026-06-03',
+              status: 'DONE',
+              createdAt: '',
+              updatedAt: '',
+            },
+          ],
+          sessions: [],
+        },
+      ],
+    });
+
+    expect(result.maxStreak).toBe(2);
+  });
 });

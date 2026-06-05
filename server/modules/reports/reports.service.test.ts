@@ -78,5 +78,43 @@ describe('ReportsService', () => {
     expect(report.content).toContain('每日执行状态报告');
     expect(saveDaily).toHaveBeenCalledOnce();
   });
-});
 
+  it('loads daily focus sessions by China calendar day boundaries', () => {
+    const saveDaily = vi.fn((_userId: number, _date: string, content: string) => ({
+      id: 1,
+      userId: 1,
+      reportDate: '2026-06-05',
+      content,
+      generatorType: 'RULE_BASED' as const,
+      createdAt: '',
+      updatedAt: '',
+    }));
+    const listByDateRange = vi.fn(() => []);
+    const service = new ReportsService(
+      {
+        getDaily: vi.fn(),
+        saveDaily,
+        getWeekly: vi.fn(),
+        saveWeekly: vi.fn(),
+      },
+      {
+        listByFilters: vi.fn(() => []),
+        getById: vi.fn(),
+      },
+      {
+        listByUser: vi.fn(() => []),
+      },
+      {
+        listByDateRange,
+      },
+    );
+
+    service.generateDaily(1, '2026-06-05');
+
+    expect(listByDateRange).toHaveBeenCalledWith(
+      1,
+      '2026-06-04T16:00:00.000Z',
+      '2026-06-05T15:59:59.999Z',
+    );
+  });
+});

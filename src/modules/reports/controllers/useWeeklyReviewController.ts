@@ -1,6 +1,7 @@
 import {useMemo} from 'react';
 
 import type {Category, Task, TaskExecutionSession} from '../../../../shared/domain/entities';
+import {getIsoDateWeekday} from '../../../../shared/lib/date';
 
 interface WeeklyDayData {
   day: string;
@@ -41,12 +42,11 @@ export function buildWeeklyReviewMetrics({categories, weeklyDaysData}: WeeklyRev
   const weeklyTimelineRateData = weeklyDaysData.map((day) => {
     const total = day.tasks.length;
     const completed = day.tasks.filter((task) => task.status === 'DONE').length;
-    const date = new Date(day.day);
     const weekdayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
     return {
       day: day.day.slice(5),
-      weekday: weekdayLabels[date.getDay()],
+      weekday: weekdayLabels[getIsoDateWeekday(day.day)],
       rate: total === 0 ? 0 : Math.round((completed / total) * 100),
       total,
       completed,
@@ -73,7 +73,7 @@ export function buildWeeklyReviewMetrics({categories, weeklyDaysData}: WeeklyRev
       return false;
     }
 
-    return day.tasks.filter((task) => task.status === 'DONE').length >= Math.ceil(day.tasks.length / 2);
+    return day.tasks.every((task) => task.status === 'DONE');
   });
 
   let maxStreak = 0;

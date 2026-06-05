@@ -3,6 +3,33 @@ import {describe, expect, it, vi} from 'vitest';
 import {FocusService} from './service';
 
 describe('FocusService', () => {
+  it('lists sessions by China calendar day boundaries', () => {
+    const listByDateRange = vi.fn(() => []);
+    const service = new FocusService(
+      {
+        getById: vi.fn(),
+        updateStatus: vi.fn(),
+      },
+      {
+        getRunningByUser: vi.fn(),
+        listByDateRange,
+        listByTask: vi.fn(),
+        createRunning: vi.fn(),
+        pause: vi.fn(),
+        resume: vi.fn(),
+        stop: vi.fn(),
+      },
+    );
+
+    service.listByDate(1, '2026-06-05');
+
+    expect(listByDateRange).toHaveBeenCalledWith(
+      1,
+      '2026-06-04T16:00:00.000Z',
+      '2026-06-05T15:59:59.999Z',
+    );
+  });
+
   it('marks task IN_PROGRESS when a session starts and resets it on stop', () => {
     const task = {
       id: 1,

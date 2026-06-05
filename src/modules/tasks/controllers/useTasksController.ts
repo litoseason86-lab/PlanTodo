@@ -2,6 +2,7 @@ import {useMemo} from 'react';
 
 import type {Task} from '../../../../shared/domain/entities';
 import type {TaskStatus} from '../../../../shared/domain/status';
+import {addIsoDateDays} from '../../../../shared/lib/date';
 
 export interface TaskFilterState {
   category: string;
@@ -25,10 +26,8 @@ export function filterTasks(tasks: Task[], filters: TaskFilterState): Task[] {
     }
 
     if (filters.dateScope === 'seven-days') {
-      const planned = new Date(task.plannedDate).getTime();
-      const selected = new Date(filters.selectedDate).getTime();
-      const limit = selected + 7 * 24 * 60 * 60 * 1000;
-      return planned >= selected && planned <= limit;
+      const limit = addIsoDateDays(filters.selectedDate, 7);
+      return task.plannedDate >= filters.selectedDate && task.plannedDate <= limit;
     }
 
     return true;
@@ -42,4 +41,3 @@ export function useTasksController(tasks: Task[], filters: TaskFilterState) {
     filteredTasks,
   };
 }
-

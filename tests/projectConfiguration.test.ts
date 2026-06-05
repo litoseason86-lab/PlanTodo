@@ -9,6 +9,10 @@ function readJsonFile<T>(relativePath: string): T {
   return JSON.parse(fs.readFileSync(path.join(projectRoot, relativePath), 'utf-8')) as T;
 }
 
+function readTextFile(relativePath: string): string {
+  return fs.readFileSync(path.join(projectRoot, relativePath), 'utf-8');
+}
+
 describe('project configuration', () => {
   it('builds a production server bundle and starts it with node', () => {
     const packageJson = readJsonFile<{
@@ -27,11 +31,21 @@ describe('project configuration', () => {
     const metadata = readJsonFile<{
       majorCapabilities?: string[];
     }>('metadata.json');
-    const envExample = fs.readFileSync(path.join(projectRoot, '.env.example'), 'utf-8');
+    const envExample = readTextFile('.env.example');
 
     expect(packageJson.dependencies ?? {}).not.toHaveProperty('@google/genai');
     expect(metadata.majorCapabilities ?? []).not.toContain('MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API');
     expect(envExample).not.toContain('GEMINI');
+  });
+
+  it('documents SQLite as the source of truth and JSON as auxiliary storage', () => {
+    const readme = readTextFile('README.md');
+    const envExample = readTextFile('.env.example');
+
+    expect(readme).toContain('SQLite 是事实来源');
+    expect(readme).toContain('JSON 只是辅助');
+    expect(envExample).toContain('SQLite is the source of truth');
+    expect(envExample).toContain('JSON is auxiliary');
   });
 
   it('enforces strict TypeScript hygiene', () => {

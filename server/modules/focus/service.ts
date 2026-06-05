@@ -1,6 +1,7 @@
 import {AppError} from '../../shared/errors/appError';
 import type {TaskRepository} from '../tasks/repository';
 import type {FocusSessionRepository} from './repository';
+import {getChinaDateUtcRange} from '../../../shared/lib/date';
 
 export class FocusService {
   constructor(
@@ -13,11 +14,9 @@ export class FocusService {
       return [];
     }
 
-    return this.sessions.listByDateRange(
-      userId,
-      `${date}T00:00:00.000Z`,
-      `${date}T23:59:59.999Z`,
-    );
+    const {startAt, endAt} = getChinaDateUtcRange(date);
+
+    return this.sessions.listByDateRange(userId, startAt, endAt);
   }
 
   getRunning(userId: number) {

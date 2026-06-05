@@ -1,6 +1,7 @@
 import {useCallback, useMemo, useState} from 'react';
 
 import type {Category, Task, TaskExecutionSession} from '../../../../shared/domain/entities';
+import {addIsoDateDays, getWeekStart, toIsoDate} from '../../../../shared/lib/date';
 import {focusApi} from '../../focus/api/focusApi';
 import {tasksApi} from '../../tasks/api/tasksApi';
 import {buildDailyReportMetrics} from './useDailyReportController';
@@ -18,14 +19,11 @@ interface UseReportStatsControllerArgs {
 }
 
 function getCurrentWeekStartDate() {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  return new Date(d.setDate(diff)).toISOString().slice(0, 10);
+  return getWeekStart(toIsoDate(new Date()));
 }
 
 export function useReportStatsController({categories, allTasks}: UseReportStatsControllerArgs) {
-  const [dailyReportDate, setDailyReportDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dailyReportDate, setDailyReportDate] = useState(() => toIsoDate(new Date()));
   const [dailyTasks, setDailyTasks] = useState<Task[]>([]);
   const [dailySessions, setDailySessions] = useState<TaskExecutionSession[]>([]);
   const [prevDailySessions, setPrevDailySessions] = useState<TaskExecutionSession[]>([]);
@@ -41,9 +39,7 @@ export function useReportStatsController({categories, allTasks}: UseReportStatsC
       setDailyTasks(tList);
       const sList = await focusApi.getSessions({date: dailyReportDate});
       setDailySessions(sList);
-      const yesterday = new Date(dailyReportDate);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+      const yesterdayStr = addIsoDateDays(dailyReportDate, -1);
       setPrevDailySessions(await focusApi.getSessions({date: yesterdayStr}));
       setDailyStatsLoaded(true);
     } catch (err) {
@@ -55,9 +51,7 @@ export function useReportStatsController({categories, allTasks}: UseReportStatsC
     setWeeklyStatsLoaded(false);
     try {
       const days = Array.from({length: 7}, (_, i) => {
-        const d = new Date(weeklyStartDate);
-        d.setDate(d.getDate() + i);
-        return d.toISOString().slice(0, 10);
+        return addIsoDateDays(weeklyStartDate, i);
       });
 
       const dayLoads = await Promise.all(days.map(async (day) => {

@@ -1,6 +1,7 @@
 import {useCallback, useState} from 'react';
 
 import type {Category, Task, TaskExecutionSession} from '../../../shared/domain/entities';
+import {toIsoDate} from '../../../shared/lib/date';
 import {categoriesApi} from '../../modules/categories/api/categoriesApi';
 import {focusApi} from '../../modules/focus/api/focusApi';
 import {tasksApi} from '../../modules/tasks/api/tasksApi';
@@ -11,7 +12,7 @@ export function useAppData() {
   const [selectedDateSessions, setSelectedDateSessions] = useState<TaskExecutionSession[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
 
   const refreshCategories = useCallback(async () => {
     const data = await categoriesApi.getCategories();

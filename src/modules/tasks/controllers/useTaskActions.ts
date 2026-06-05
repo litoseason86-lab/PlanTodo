@@ -2,6 +2,7 @@ import {useMemo, useState, type FormEvent} from 'react';
 
 import type {Category, Task, TaskExecutionSession} from '../../../../shared/domain/entities';
 import type {TaskStatus} from '../../../../shared/domain/status';
+import {toIsoDate} from '../../../../shared/lib/date';
 import {getErrorMessage} from '../../../app/errors';
 import {tasksApi} from '../api/tasksApi';
 import {filterTasks} from './useTasksController';
@@ -43,7 +44,7 @@ export function useTaskActions({
 }: UseTaskActionsArgs) {
   const [taskFormTitle, setTaskFormTitle] = useState('');
   const [taskFormCategory, setTaskFormCategory] = useState(0);
-  const [taskFormDate, setTaskFormDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [taskFormDate, setTaskFormDate] = useState(() => toIsoDate(new Date()));
   const [taskFilterCategory, setTaskFilterCategory] = useState('all');
   const [taskFilterStatus, setTaskFilterStatus] = useState('all');
   const [taskFilterDateScope, setTaskFilterDateScope] = useState<'today' | 'seven-days' | 'all'>('today');

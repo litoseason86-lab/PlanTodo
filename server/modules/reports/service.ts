@@ -4,6 +4,7 @@ import type {ReportRepository} from './repository';
 import type {TaskRepository} from '../tasks/repository';
 import {AppError} from '../../shared/errors/appError';
 import {renderDailyReport, renderWeeklyReview} from './generators';
+import {addIsoDateDays, getChinaDateUtcRange} from '../../../shared/lib/date';
 
 export class ReportsService {
   constructor(
@@ -24,8 +25,9 @@ export class ReportsService {
   generateDaily(userId: number, date: string) {
     const categories = this.categories.listByUser(userId);
     const tasks = this.tasks.listByFilters({userId, plannedDate: date});
+    const {startAt, endAt} = getChinaDateUtcRange(date);
     const sessions = this.sessions
-      .listByDateRange(userId, `${date}T00:00:00.000Z`, `${date}T23:59:59.999Z`)
+      .listByDateRange(userId, startAt, endAt)
       .filter((session) => session.status === 'COMPLETED');
 
     const doneCount = tasks.filter((task) => task.status === 'DONE').length;
@@ -85,13 +87,7 @@ export class ReportsService {
 
   generateWeekly(userId: number, weekStart: string) {
     const categories = this.categories.listByUser(userId);
-    const weekStartDate = new Date(`${weekStart}T00:00:00.000Z`);
-    if (Number.isNaN(weekStartDate.getTime())) {
-      throw new AppError(400, 'Invalid weekStart date format');
-    }
-
-    const weekEndDate = new Date(weekStartDate.getTime() + 6 * 24 * 60 * 60 * 1000);
-    const weekEnd = weekEndDate.toISOString().slice(0, 10);
+    const weekEnd = addIsoDateDays(weekStart, 6);
 
     const categoryTaskCounts = Object.fromEntries(categories.map((category) => [category.name, 0]));
     const categoryDurations = Object.fromEntries(categories.map((category) => [category.name, 0]));
@@ -104,8 +100,7 @@ export class ReportsService {
     let currentStreak = 0;
 
     for (let index = 0; index < 7; index += 1) {
-      const currentDate = new Date(weekStartDate.getTime() + index * 24 * 60 * 60 * 1000);
-      const date = currentDate.toISOString().slice(0, 10);
+      const date = addIsoDateDays(weekStart, index);
       const dayTasks = this.tasks.listByFilters({userId, plannedDate: date});
       const dayDoneCount = dayTasks.filter((task) => task.status === 'DONE').length;
 
@@ -127,8 +122,9 @@ export class ReportsService {
         }
       }
 
+      const {startAt, endAt} = getChinaDateUtcRange(date);
       const sessions = this.sessions
-        .listByDateRange(userId, `${date}T00:00:00.000Z`, `${date}T23:59:59.999Z`)
+        .listByDateRange(userId, startAt, endAt)
         .filter((session) => session.status === 'COMPLETED');
 
       for (const session of sessions) {
@@ -192,4 +188,3 @@ export class ReportsService {
     );
   }
 }
-
