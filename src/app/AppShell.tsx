@@ -7,9 +7,8 @@ import {
 
 import type {Category, Task, TaskExecutionSession} from '../../shared/domain/entities';
 import type {TaskStatus} from '../../shared/domain/status';
-import {categoriesApi} from '../modules/categories/api/categoriesApi';
 import {CategoryPanel} from '../modules/categories/components/CategoryPanel';
-import {getNextCategorySortOrder} from '../modules/categories/controllers/useCategoriesController';
+import {useCategoryActions} from '../modules/categories/controllers/useCategoryActions';
 import {DashboardPanel} from '../modules/dashboard/components/DashboardPanel';
 import {buildTodayCategoryFocusData, getTaskFocusMinutes} from '../modules/dashboard/controllers/useDashboardController';
 import {focusApi} from '../modules/focus/api/focusApi';
@@ -70,11 +69,6 @@ export default function AppShell() {
   const {successMsg, errorMsg, showToast, clearSuccess, clearError} = useToast();
   const [focusTimeElapsed, setFocusTimeElapsed] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [catFormName, setCatFormName] = useState('');
-  const [catFormColor, setCatFormColor] = useState('#fb7185');
-  const [catFormSort, setCatFormSort] = useState(0);
   const [taskFormTitle, setTaskFormTitle] = useState('');
   const [taskFormCategory, setTaskFormCategory] = useState(0);
   const [taskFormDate, setTaskFormDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -101,6 +95,12 @@ export default function AppShell() {
   const [lastFinishedSessionTask, setLastFinishedSessionTask] = useState<Task | null>(null);
 
   const styleContext = THEME_STYLES[activeTheme];
+  const categoryActions = useCategoryActions({
+    categories,
+    refreshCategories,
+    setLoading,
+    showToast,
+  });
 
   useEffect(() => {
     void loadMetaData()
@@ -167,58 +167,6 @@ export default function AppShell() {
       }
     } catch (err) {
       console.error('Check session state error', err);
-    }
-  }
-
-  function handleOpenCategoryModal(cat: Category | null) {
-    setEditingCategory(cat);
-    if (cat) {
-      setCatFormName(cat.name);
-      setCatFormColor(cat.color);
-      setCatFormSort(cat.sortOrder);
-    } else {
-      setCatFormName('');
-      setCatFormColor('#fb7185');
-      setCatFormSort(getNextCategorySortOrder(categories));
-    }
-    setIsCategoryModalOpen(true);
-  }
-
-  async function handleSaveCategory() {
-    if (!catFormName.trim()) {
-      showToast('分类名称不能为空呀', 'error');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      if (editingCategory) {
-        await categoriesApi.updateCategory(editingCategory.id, {name: catFormName, color: catFormColor, sortOrder: catFormSort});
-        showToast('分类更新完成');
-      } else {
-        await categoriesApi.createCategory({name: catFormName, color: catFormColor, sortOrder: catFormSort});
-        showToast('新分类创建成功');
-      }
-      setIsCategoryModalOpen(false);
-      await refreshCategories();
-    } catch (err) {
-      showToast(getErrorMessage(err, '操作分类失败'), 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDeleteCategory(id: number) {
-    if (!window.confirm('您确定要删去该分类？关联任务将变为无分类状态。')) return;
-    try {
-      setLoading(true);
-      await categoriesApi.deleteCategory(id);
-      showToast('分类已顺利移除');
-      await refreshCategories();
-    } catch (err) {
-      showToast(getErrorMessage(err, '删除分类失败'), 'error');
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -539,18 +487,18 @@ export default function AppShell() {
             categories={categories}
             allTasks={allTasks}
             presetColors={PRESET_COLORS}
-            isCategoryModalOpen={isCategoryModalOpen}
-            editingCategory={editingCategory}
-            catFormName={catFormName}
-            catFormColor={catFormColor}
-            catFormSort={catFormSort}
-            setIsCategoryModalOpen={setIsCategoryModalOpen}
-            setCatFormName={setCatFormName}
-            setCatFormColor={setCatFormColor}
-            setCatFormSort={setCatFormSort}
-            handleOpenCategoryModal={handleOpenCategoryModal}
-            handleDeleteCategory={handleDeleteCategory}
-            handleSaveCategory={handleSaveCategory}
+            isCategoryModalOpen={categoryActions.isCategoryModalOpen}
+            editingCategory={categoryActions.editingCategory}
+            catFormName={categoryActions.catFormName}
+            catFormColor={categoryActions.catFormColor}
+            catFormSort={categoryActions.catFormSort}
+            setIsCategoryModalOpen={categoryActions.setIsCategoryModalOpen}
+            setCatFormName={categoryActions.setCatFormName}
+            setCatFormColor={categoryActions.setCatFormColor}
+            setCatFormSort={categoryActions.setCatFormSort}
+            handleOpenCategoryModal={categoryActions.handleOpenCategoryModal}
+            handleDeleteCategory={categoryActions.handleDeleteCategory}
+            handleSaveCategory={categoryActions.handleSaveCategory}
           />
         )}
         {activeTab === 'daily' && (
