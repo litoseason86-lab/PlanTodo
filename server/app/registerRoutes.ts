@@ -1,12 +1,5 @@
-import path from 'node:path';
-
 import {Router} from 'express';
 
-import {CategoryJsonRepository} from '../storage/json/repositories/categoryJsonRepository';
-import {FocusSessionJsonRepository} from '../storage/json/repositories/focusSessionJsonRepository';
-import {ReportJsonRepository} from '../storage/json/repositories/reportJsonRepository';
-import {TaskJsonRepository} from '../storage/json/repositories/taskJsonRepository';
-import {JsonFileStore} from '../storage/json/fileStore';
 import {buildCategoryRoutes} from '../modules/categories/routes';
 import {CategoriesService} from '../modules/categories/service';
 import {buildFocusRoutes} from '../modules/focus/routes';
@@ -15,19 +8,21 @@ import {buildReportRoutes} from '../modules/reports/routes';
 import {ReportsService} from '../modules/reports/service';
 import {buildTaskRoutes} from '../modules/tasks/routes';
 import {TasksService} from '../modules/tasks/service';
+import {createRepositoriesFromEnv} from '../storage/createRepositories';
 
 export function registerRoutes(): Router {
   const router = Router();
-  const store = new JsonFileStore(path.resolve('data/db.json'));
-  const categories = new CategoryJsonRepository(store);
-  const tasks = new TaskJsonRepository(store);
-  const focusSessions = new FocusSessionJsonRepository(store);
-  const reports = new ReportJsonRepository(store);
+  const repositories = createRepositoriesFromEnv();
 
-  const categoriesService = new CategoriesService(categories, tasks);
-  const tasksService = new TasksService(tasks, categories, focusSessions);
-  const focusService = new FocusService(tasks, focusSessions);
-  const reportsService = new ReportsService(reports, tasks, categories, focusSessions);
+  const categoriesService = new CategoriesService(repositories.categories, repositories.tasks);
+  const tasksService = new TasksService(repositories.tasks, repositories.categories, repositories.focusSessions);
+  const focusService = new FocusService(repositories.tasks, repositories.focusSessions);
+  const reportsService = new ReportsService(
+    repositories.reports,
+    repositories.tasks,
+    repositories.categories,
+    repositories.focusSessions,
+  );
 
   router.use(buildCategoryRoutes(categoriesService));
   router.use(buildTaskRoutes(tasksService));
