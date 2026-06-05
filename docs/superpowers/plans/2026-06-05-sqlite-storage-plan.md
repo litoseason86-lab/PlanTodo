@@ -1344,10 +1344,9 @@ export function registerRoutes(): Router {
 Modify `.env.example`:
 
 ```txt
-GEMINI_API_KEY=
-STORAGE_DRIVER=json
-JSON_DB_PATH=data/db.json
+STORAGE_DRIVER=sqlite
 SQLITE_DB_PATH=data/plantode.sqlite
+JSON_DB_PATH=data/db.json
 ```
 
 - [ ] **Step 6: 运行 factory 测试和类型检查**
@@ -1384,21 +1383,21 @@ Modify `README.md` to include:
 ````md
 ## 存储驱动
 
-默认使用 JSON 文件存储：
-
-```bash
-STORAGE_DRIVER=json
-JSON_DB_PATH=data/db.json
-```
-
-也可以切换到 SQLite：
+默认使用 SQLite 文件存储：
 
 ```bash
 STORAGE_DRIVER=sqlite
 SQLITE_DB_PATH=data/plantode.sqlite
 ```
 
-SQLite 使用 `better-sqlite3`，启动时会自动执行 schema migration。当前不包含 JSON 到 SQLite 的数据导入；历史数据迁移会作为独立工具处理。
+也可以切换到 JSON：
+
+```bash
+STORAGE_DRIVER=json
+JSON_DB_PATH=data/db.json
+```
+
+SQLite 使用 `better-sqlite3`，启动时会自动执行 schema migration。JSON 到 SQLite 的历史数据迁移可通过 `scripts/importJsonToSqlite.ts` 独立执行。
 ```
 ````
 

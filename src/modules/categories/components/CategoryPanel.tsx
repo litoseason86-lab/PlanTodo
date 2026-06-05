@@ -171,7 +171,7 @@ export function CategoryPanel({
                           ? 'scale-110 ring-2 ring-offset-2 border-white shadow-md'
                           : 'hover:scale-105 border-transparent'
                       }`}
-                      style={{backgroundColor: color.hex, ringColor: color.hex}}
+                      style={{backgroundColor: color.hex}}
                     >
                       {catFormColor === color.hex && (
                         <Check className="w-3 h-3 text-white absolute inset-0 m-auto stroke-[3]" />

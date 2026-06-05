@@ -1,17 +1,17 @@
 import {Router} from 'express';
 
 import {handleHttpError} from '../../shared/http/handleHttpError';
+import {getUserContext} from '../../shared/http/userContext';
 import {parseCategoryBody, parseCategoryId} from './schemas';
 import {CategoriesService} from './service';
-
-const DEMO_USER_ID = 1;
 
 export function buildCategoryRoutes(service: CategoriesService): Router {
   const router = Router();
 
   router.get('/categories', (_req, res) => {
     try {
-      res.json(service.list(DEMO_USER_ID));
+      const {userId} = getUserContext();
+      res.json(service.list(userId));
     } catch (error) {
       handleHttpError(res, error);
     }
@@ -19,9 +19,10 @@ export function buildCategoryRoutes(service: CategoriesService): Router {
 
   router.post('/categories', (req, res) => {
     try {
+      const {userId} = getUserContext();
       const body = parseCategoryBody(req.body);
       const category = service.create({
-        userId: DEMO_USER_ID,
+        userId,
         ...body,
       });
       res.status(201).json(category);
@@ -32,11 +33,12 @@ export function buildCategoryRoutes(service: CategoriesService): Router {
 
   router.put('/categories/:id', (req, res) => {
     try {
+      const {userId} = getUserContext();
       const id = parseCategoryId(req.params.id);
       const body = parseCategoryBody(req.body);
       const category = service.update({
         id,
-        userId: DEMO_USER_ID,
+        userId,
         ...body,
       });
       res.json(category);
@@ -47,8 +49,9 @@ export function buildCategoryRoutes(service: CategoriesService): Router {
 
   router.delete('/categories/:id', (req, res) => {
     try {
+      const {userId} = getUserContext();
       const id = parseCategoryId(req.params.id);
-      res.json(service.remove(id, DEMO_USER_ID));
+      res.json(service.remove(id, userId));
     } catch (error) {
       handleHttpError(res, error);
     }
@@ -56,4 +59,3 @@ export function buildCategoryRoutes(service: CategoriesService): Router {
 
   return router;
 }
-

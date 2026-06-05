@@ -14,7 +14,6 @@ interface TasksPanelProps {
   categories: Category[];
   allTasks: Task[];
   filteredTaskItems: Task[];
-  selectedDate: string;
   taskFormTitle: string;
   taskFormCategory: number;
   taskFormDate: string;
@@ -38,7 +37,6 @@ export function TasksPanel({
   categories,
   allTasks,
   filteredTaskItems,
-  selectedDate,
   taskFormTitle,
   taskFormCategory,
   taskFormDate,

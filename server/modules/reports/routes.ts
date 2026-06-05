@@ -1,18 +1,18 @@
 import {Router} from 'express';
 
 import {handleHttpError} from '../../shared/http/handleHttpError';
+import {getUserContext} from '../../shared/http/userContext';
 import {parseDailyBodyDate, parseDailyDate, parseWeekStart} from './schemas';
 import {ReportsService} from './service';
-
-const DEMO_USER_ID = 1;
 
 export function buildReportRoutes(service: ReportsService): Router {
   const router = Router();
 
   router.get('/daily-reports', (req, res) => {
     try {
+      const {userId} = getUserContext();
       const date = parseDailyDate(req.query.date);
-      res.json(service.getDaily(DEMO_USER_ID, date));
+      res.json(service.getDaily(userId, date));
     } catch (error) {
       handleHttpError(res, error);
     }
@@ -20,8 +20,9 @@ export function buildReportRoutes(service: ReportsService): Router {
 
   router.post('/daily-reports/generate', (req, res) => {
     try {
+      const {userId} = getUserContext();
       const date = parseDailyBodyDate((req.body as Record<string, unknown>)?.date);
-      res.json(service.generateDaily(DEMO_USER_ID, date));
+      res.json(service.generateDaily(userId, date));
     } catch (error) {
       handleHttpError(res, error);
     }
@@ -29,8 +30,9 @@ export function buildReportRoutes(service: ReportsService): Router {
 
   router.get('/weekly-reviews', (req, res) => {
     try {
+      const {userId} = getUserContext();
       const weekStart = parseWeekStart(req.query.weekStart, 'query');
-      res.json(service.getWeekly(DEMO_USER_ID, weekStart));
+      res.json(service.getWeekly(userId, weekStart));
     } catch (error) {
       handleHttpError(res, error);
     }
@@ -38,8 +40,9 @@ export function buildReportRoutes(service: ReportsService): Router {
 
   router.post('/weekly-reviews/generate', (req, res) => {
     try {
+      const {userId} = getUserContext();
       const weekStart = parseWeekStart((req.body as Record<string, unknown>)?.weekStart, 'body');
-      res.json(service.generateWeekly(DEMO_USER_ID, weekStart));
+      res.json(service.generateWeekly(userId, weekStart));
     } catch (error) {
       handleHttpError(res, error);
     }
@@ -47,4 +50,3 @@ export function buildReportRoutes(service: ReportsService): Router {
 
   return router;
 }
-

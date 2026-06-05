@@ -15,16 +15,16 @@ afterEach(() => {
 });
 
 describe('createRepositoriesFromEnv', () => {
-  it('defaults to json repositories', () => {
-    jsonFile = createTestSqliteFile('plantode-json-factory');
-    vi.stubEnv('JSON_DB_PATH', jsonFile.filePath);
+  it('defaults to sqlite repositories', () => {
+    sqliteFile = createTestSqliteFile('plantode-default-sqlite-factory');
+    vi.stubEnv('SQLITE_DB_PATH', sqliteFile.filePath);
 
     const repositories = createRepositoriesFromEnv();
 
-    expect(repositories.categories.constructor.name).toBe('CategoryJsonRepository');
-    expect(repositories.tasks.constructor.name).toBe('TaskJsonRepository');
-    expect(repositories.focusSessions.constructor.name).toBe('FocusSessionJsonRepository');
-    expect(repositories.reports.constructor.name).toBe('ReportJsonRepository');
+    expect(repositories.categories.constructor.name).toBe('CategorySqliteRepository');
+    expect(repositories.tasks.constructor.name).toBe('TaskSqliteRepository');
+    expect(repositories.focusSessions.constructor.name).toBe('FocusSessionSqliteRepository');
+    expect(repositories.reports.constructor.name).toBe('ReportSqliteRepository');
   });
 
   it('creates sqlite repositories when STORAGE_DRIVER is sqlite', () => {
@@ -38,6 +38,19 @@ describe('createRepositoriesFromEnv', () => {
     expect(repositories.tasks.constructor.name).toBe('TaskSqliteRepository');
     expect(repositories.focusSessions.constructor.name).toBe('FocusSessionSqliteRepository');
     expect(repositories.reports.constructor.name).toBe('ReportSqliteRepository');
+  });
+
+  it('creates json repositories when STORAGE_DRIVER is json', () => {
+    jsonFile = createTestSqliteFile('plantode-json-factory');
+    vi.stubEnv('STORAGE_DRIVER', 'json');
+    vi.stubEnv('JSON_DB_PATH', jsonFile.filePath);
+
+    const repositories = createRepositoriesFromEnv();
+
+    expect(repositories.categories.constructor.name).toBe('CategoryJsonRepository');
+    expect(repositories.tasks.constructor.name).toBe('TaskJsonRepository');
+    expect(repositories.focusSessions.constructor.name).toBe('FocusSessionJsonRepository');
+    expect(repositories.reports.constructor.name).toBe('ReportJsonRepository');
   });
 
   it('rejects unknown storage drivers', () => {

@@ -1,4 +1,5 @@
 import {AppError} from '../../shared/errors/appError';
+import {parseOptionalIsoDate} from '../../shared/http/dateParams';
 
 export function parseTaskId(value: string): number {
   const taskId = Number.parseInt(value, 10);
@@ -16,3 +17,6 @@ export function parseSessionId(value: string): number {
   return sessionId;
 }
 
+export function parseSessionDateQuery(value: unknown): string | undefined {
+  return parseOptionalIsoDate(value, 'date');
+}

@@ -1,5 +1,6 @@
 import {AppError} from '../../shared/errors/appError';
 import {TASK_STATUSES, type TaskStatus} from '../../../shared/domain/status';
+import {parseOptionalIsoDate, todayIsoDate} from '../../shared/http/dateParams';
 
 export interface TaskBody {
   title: string;
@@ -31,8 +32,8 @@ export function parseTaskBody(body: unknown): TaskBody {
     categoryId,
     plannedDate:
       typeof payload.plannedDate === 'string'
-        ? payload.plannedDate
-        : new Date().toISOString().slice(0, 10),
+        ? parseOptionalIsoDate(payload.plannedDate, 'plannedDate')!
+        : todayIsoDate(),
   };
 }
 
@@ -58,7 +59,7 @@ export function parseTaskQuery(query: Record<string, unknown>): {
     typeof categoryIdValue === 'string' ? Number.parseInt(categoryIdValue, 10) : undefined;
 
   return {
-    date: typeof query.date === 'string' ? query.date : undefined,
+    date: parseOptionalIsoDate(query.date, 'date'),
     status: typeof query.status === 'string' && TASK_STATUSES.includes(query.status as TaskStatus)
       ? (query.status as TaskStatus)
       : undefined,
@@ -68,4 +69,3 @@ export function parseTaskQuery(query: Record<string, unknown>): {
         : undefined,
   };
 }
-

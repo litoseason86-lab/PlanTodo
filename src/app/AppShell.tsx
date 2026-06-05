@@ -1,9 +1,4 @@
 import {useEffect, useState} from 'react';
-import {
-  Calendar,
-  Loader2,
-  Square,
-} from 'lucide-react';
 
 import {CategoryPanel} from '../modules/categories/components/CategoryPanel';
 import {useCategoryActions} from '../modules/categories/controllers/useCategoryActions';
@@ -35,12 +30,6 @@ const PRESET_COLORS = [
   {hex: '#a78bfa', label: '薰衣草'},
 ];
 
-const STORAGE_STYLES = {
-  primary: THEME_STYLES.peach.primary,
-  primaryLight: THEME_STYLES.peach.primaryLight,
-  secondary: THEME_STYLES.peach.secondary,
-};
-
 export default function AppShell() {
   const [activeTab, setActiveTab] = useState<AppTab>('today');
   const [activeTheme, setActiveTheme] = useState<ThemeId>('peach');
@@ -49,7 +38,6 @@ export default function AppShell() {
     tasks,
     selectedDateSessions,
     allTasks,
-    loading,
     setLoading,
     selectedDate,
     setSelectedDate,
@@ -204,7 +192,6 @@ export default function AppShell() {
             categories={categories}
             allTasks={allTasks}
             filteredTaskItems={taskActions.filteredTaskItems}
-            selectedDate={selectedDate}
             taskFormTitle={taskActions.taskFormTitle}
             taskFormCategory={taskActions.taskFormCategory}
             taskFormDate={taskActions.taskFormDate}

@@ -1,6 +1,5 @@
 {
   "name": "Plan Management System",
   "description": "A personal plan execution and focus management system featuring daily/weekly task scheduling, custom categories, pomodoro-style focus sessions, and rule-based report generation.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "requestFramePermissions": []
 }

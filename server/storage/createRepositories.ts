@@ -23,7 +23,7 @@ export interface AppRepositories {
 }
 
 export function createRepositoriesFromEnv(env: NodeJS.ProcessEnv = process.env): AppRepositories {
-  const driver = env.STORAGE_DRIVER ?? 'json';
+  const driver = env.STORAGE_DRIVER ?? 'sqlite';
 
   if (driver === 'json') {
     const store = new JsonFileStore(path.resolve(env.JSON_DB_PATH ?? 'data/db.json'));

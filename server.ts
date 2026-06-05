@@ -14,5 +14,6 @@ async function bootstrap() {
 
 bootstrap().catch((err) => {
   console.error('[Server Fail] Bootstrap error:', err);
+  process.exitCode = 1;
 });
 export default bootstrap;
