@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {
   Calendar,
   Loader2,
@@ -8,7 +8,7 @@ import {
 import {CategoryPanel} from '../modules/categories/components/CategoryPanel';
 import {useCategoryActions} from '../modules/categories/controllers/useCategoryActions';
 import {DashboardPanel} from '../modules/dashboard/components/DashboardPanel';
-import {buildTodayCategoryFocusData, getTaskFocusMinutes} from '../modules/dashboard/controllers/useDashboardController';
+import {useDashboardController} from '../modules/dashboard/controllers/useDashboardController';
 import {FocusPanel} from '../modules/focus/components/FocusPanel';
 import {useFocusSessionController} from '../modules/focus/controllers/useFocusSessionController';
 import {DailyReportPanel} from '../modules/reports/components/DailyReportPanel';
@@ -92,6 +92,14 @@ export default function AppShell() {
     loadDailyStats: reportStats.loadDailyStats,
     loadWeeklyStats: reportStats.loadWeeklyStats,
   });
+  const dashboardController = useDashboardController({
+    categories,
+    tasks,
+    allTasks,
+    selectedDateSessions,
+    runningSession: focusSession.runningSession,
+    focusTimeElapsed: focusSession.focusTimeElapsed,
+  });
 
   useEffect(() => {
     void loadMetaData()
@@ -123,19 +131,6 @@ export default function AppShell() {
       void reportStats.loadWeeklyStats();
     }
   }, [reportStats.weeklyStartDate, activeTab, reportStats.loadWeeklyStats]);
-
-  const todayCategoryFocusData = useMemo(
-    () => buildTodayCategoryFocusData({categories, tasks, allTasks, selectedDateSessions}),
-    [categories, tasks, allTasks, selectedDateSessions],
-  );
-
-  const getTaskFocusMinutesForPanel = (taskId: number) =>
-    getTaskFocusMinutes({
-      taskId,
-      selectedDateSessions,
-      runningSession: focusSession.runningSession,
-      focusTimeElapsed: focusSession.focusTimeElapsed,
-    });
 
   return (
     <div className="min-h-screen text-[#413333] font-sans selection:bg-rose-100 pb-12 transition-colors duration-300" style={{backgroundColor: styleContext.bg}} id="app_frame">
@@ -188,7 +183,7 @@ export default function AppShell() {
             tasks={tasks}
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
-            todayCategoryFocusData={todayCategoryFocusData}
+            todayCategoryFocusData={dashboardController.todayCategoryFocusData}
             taskFormTitle={taskActions.taskFormTitle}
             taskFormCategory={taskActions.taskFormCategory}
             setTaskFormTitle={taskActions.setTaskFormTitle}
@@ -200,7 +195,7 @@ export default function AppShell() {
             runningSession={focusSession.runningSession}
             lastFinishedSessionTask={focusSession.lastFinishedSessionTask}
             setLastFinishedSessionTask={focusSession.setLastFinishedSessionTask}
-            getTaskFocusMinutes={getTaskFocusMinutesForPanel}
+            getTaskFocusMinutes={dashboardController.getTaskFocusMinutes}
           />
         )}
         {activeTab === 'tasks' && (
