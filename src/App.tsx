@@ -602,143 +602,131 @@ export default function App() {
         }
         @keyframes pulse-ring {
           0%, 100% { transform: scale(1.0); opacity: 0.15; }
-          50% { transform: scale(1.18); opacity: 0.3; }
+          50% { transform: scale(1.12); opacity: 0.25; }
         }
         .breathing-ring {
           animation: pulse-ring 3s infinite ease-in-out;
         }
-        @keyframes line-breathe {
-          0%, 100% { opacity: 0.8; }
-          50% { opacity: 1; filter: drop-shadow(0 0 4px var(--color-primary)); }
+        @keyframes shrink {
+          from { width: 100%; }
+          to { width: 0%; }
         }
-        .card-timeline-node {
-          box-shadow: 0 0 0 4px #ffffff, 0 0 0 6px var(--color-primary);
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up {
+          animation: fade-in-up 0.35s ease-out;
         }
       `}</style>
 
       {/* Global Alerts Floating Layer */}
       {successMsg && (
-        <div className="fixed top-6 right-6 bg-emerald-550 bg-emerald-600 text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-2.5 z-50 transition-all text-xs font-bold animate-in fade-in slide-in-from-top-4" id="success_toast">
-          <div className="w-2 h-2 bg-emerald-200 rounded-full animate-ping"></div>
-          <span>{successMsg}</span>
+        <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-4" id="success_toast">
+          <div className="bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl shadow-emerald-200/40 flex items-center gap-3 min-w-[240px] overflow-hidden relative">
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <Check className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="text-xs font-semibold">{successMsg}</span>
+            <button onClick={() => setSuccessMsg(null)} className="ml-auto text-white/60 hover:text-white transition shrink-0">
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/30">
+              <div className="h-full bg-white/80 rounded-full" style={{ animation: 'shrink 3.5s linear forwards' }}></div>
+            </div>
+          </div>
         </div>
       )}
 
       {errorMsg && (
-        <div className="fixed top-6 right-6 bg-rose-50 border border-rose-200 text-rose-700 px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-2.5 z-50 transition-all text-xs font-bold animate-in fade-in slide-in-from-top-4" id="error_toast">
-          <AlertCircle className="w-4 h-4 text-rose-500" />
-          <span>{errorMsg}</span>
+        <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-4" id="error_toast">
+          <div className="bg-white border border-rose-200 text-rose-700 px-5 py-3 rounded-2xl shadow-xl shadow-rose-100/40 flex items-center gap-3 min-w-[240px] overflow-hidden relative">
+            <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+            </div>
+            <span className="text-xs font-semibold">{errorMsg}</span>
+            <button onClick={() => setErrorMsg(null)} className="ml-auto text-slate-300 hover:text-slate-500 transition shrink-0">
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-rose-100">
+              <div className="h-full bg-rose-400 rounded-full" style={{ animation: 'shrink 4.5s linear forwards' }}></div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Active Session Floater widget */}
       {runningSession && activeTab !== 'focus' && (
-        <div 
+        <div
           onClick={() => setActiveTab('focus')}
-          className="fixed bottom-6 right-6 bg-slate-900 text-white px-5 py-4 rounded-3xl shadow-2xl flex items-center gap-4 cursor-pointer z-40 hover:scale-105 transition-all duration-300 animate-bounce"
+          className="fixed bottom-6 right-6 bg-slate-900/95 backdrop-blur-xl text-white px-5 py-3.5 rounded-2xl shadow-2xl shadow-slate-900/20 flex items-center gap-3.5 cursor-pointer z-40 hover:scale-[1.03] hover:shadow-2xl transition-all duration-300 ring-1 ring-white/10"
           id="global_running_bar"
         >
-          <div className="relative">
-            <Timer className="w-5 h-5 text-rose-300 animate-spin" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full inline-block"></span>
+          <div className="relative shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-rose-500/20 flex items-center justify-center">
+              <Timer className="w-4.5 h-4.5 text-rose-400" />
+            </div>
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-rose-400 rounded-full ring-2 ring-slate-900 animate-pulse"></span>
           </div>
-          <div className="text-left text-xs">
-            <p className="font-bold text-[8.5px] uppercase tracking-wider text-rose-300/80">心流引擎已加载</p>
-            <p className="text-[12px] font-bold truncate max-w-44 text-white">{runningSession.taskTitle || '主线专注中'}</p>
+          <div className="text-left min-w-0">
+            <p className="text-[9px] uppercase tracking-widest text-rose-400/70 font-semibold">心流引擎运行中</p>
+            <p className="text-xs font-semibold truncate max-w-[160px] text-white/90">{runningSession.taskTitle || '主线专注中'}</p>
           </div>
-          <span className="bg-white/10 text-rose-300 font-mono text-xs font-bold px-3 py-1 rounded-xl">
-            {Math.floor(focusTimeElapsed / 60)}m {focusTimeElapsed % 60}s
+          <span className="bg-white/10 text-rose-300 font-mono text-xs font-bold px-3 py-1.5 rounded-xl shrink-0 tabular-nums">
+            {Math.floor(focusTimeElapsed / 60)}:{String(focusTimeElapsed % 60).padStart(2, '0')}
           </span>
         </div>
       )}
 
       {/* Header Brand Section */}
-      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-rose-100/50 shadow-sm transition-all">
-        <div className="max-w-[1280px] mx-auto px-6 py-4 flex items-center justify-between">
-          
-          <div className="flex items-center gap-2.5 select-none hover:opacity-90 transition">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-md`} style={{ backgroundColor: styleContext.primary }}>
+      <header className="bg-white/70 backdrop-blur-xl sticky top-0 z-40 border-b border-slate-200/30 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-300">
+        <div className="max-w-[1280px] mx-auto px-6 py-3.5 flex items-center justify-between">
+
+          <div className="flex items-center gap-3 select-none cursor-default">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-lg shadow-lg shadow-rose-200/30 transition-transform duration-300 hover:scale-105" style={{ backgroundColor: styleContext.primary }}>
               🍑
             </div>
             <div>
-              <h1 className="font-extrabold text-base tracking-tight text-slate-800 uppercase leading-none">
+              <h1 className="font-extrabold text-sm tracking-tight text-slate-800 uppercase leading-none">
                 {activeTheme === 'peach' ? 'COZY MOMENT' : 'SIMPLE LIFE'}
               </h1>
-              <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">
+              <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-widest font-medium">
                 时间专注沉淀手记
               </p>
             </div>
           </div>
 
           {/* Horizontal Navigation Tabs */}
-          <nav className="flex items-center gap-1.5" id="horizontal_navigation_menu">
-            <button
-              onClick={() => { setActiveTab('today'); setErrorMsg(null); }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'today' 
-                  ? `${styleContext.primaryBg} text-white shadow` 
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>今日执行</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('tasks'); setErrorMsg(null); }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'tasks'
-                  ? `${styleContext.primaryBg} text-white shadow` 
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <ListTodo className="w-3.5 h-3.5" />
-              <span>任务库</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('categories'); setErrorMsg(null); }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'categories'
-                  ? `${styleContext.primaryBg} text-white shadow` 
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <Tags className="w-3.5 h-3.5" />
-              <span>分类管理</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('daily'); setErrorMsg(null); }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'daily'
-                  ? `${styleContext.primaryBg} text-white shadow` 
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>每日记录</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('weekly'); setErrorMsg(null); }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'weekly'
-                  ? `${styleContext.primaryBg} text-white shadow` 
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <CalendarRange className="w-3.5 h-3.5" />
-              <span>周复盘</span>
-            </button>
+          <nav className="flex items-center gap-1 bg-white/60 backdrop-blur-sm rounded-2xl p-1.5 border border-slate-200/40 shadow-sm" id="horizontal_navigation_menu">
+            {[
+              { key: 'today' as const, icon: LayoutDashboard, label: '今日执行' },
+              { key: 'tasks' as const, icon: ListTodo, label: '任务库' },
+              { key: 'categories' as const, icon: Tags, label: '分类管理' },
+              { key: 'daily' as const, icon: FileText, label: '每日记录' },
+              { key: 'weekly' as const, icon: CalendarRange, label: '周复盘' },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => { setActiveTab(tab.key); setErrorMsg(null); }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                  activeTab === tab.key
+                    ? 'text-white shadow-md scale-[1.02]'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/80'
+                }`}
+                style={activeTab === tab.key ? { backgroundColor: styleContext.primary } : undefined}
+              >
+                <tab.icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            ))}
 
             {runningSession && (
               <button
                 onClick={() => { setActiveTab('focus'); setErrorMsg(null); }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 ${
                   activeTab === 'focus'
-                    ? 'bg-rose-500 text-white shadow-lg animate-pulse' 
-                    : 'bg-rose-50 text-rose-600'
+                    ? 'bg-rose-500 text-white shadow-md shadow-rose-200/50'
+                    : 'bg-rose-50/80 text-rose-500 hover:bg-rose-100/80'
                 }`}
               >
                 <Timer className="w-3.5 h-3.5 animate-spin" />
@@ -748,23 +736,23 @@ export default function App() {
           </nav>
 
           {/* Dual Theme Toggle switcher */}
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+          <div className="flex items-center gap-0.5 bg-slate-100/80 p-1 rounded-2xl border border-slate-200/30">
             <button
               onClick={() => setActiveTheme('peach')}
-              className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all duration-200 flex items-center gap-1 cursor-pointer ${
                 activeTheme === 'peach'
-                  ? 'bg-white text-rose-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-white text-rose-600 shadow-sm ring-1 ring-rose-100'
+                  : 'text-slate-400 hover:text-slate-600'
               }`}
             >
               🍑 {THEME_STYLES.peach.name}
             </button>
             <button
               onClick={() => setActiveTheme('beige')}
-              className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all duration-200 flex items-center gap-1 cursor-pointer ${
                 activeTheme === 'beige'
-                  ? 'bg-white text-stone-700 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-white text-amber-700 shadow-sm ring-1 ring-amber-100'
+                  : 'text-slate-400 hover:text-slate-600'
               }`}
             >
               🪵 {THEME_STYLES.beige.name}
@@ -782,32 +770,32 @@ export default function App() {
           <div className="space-y-6" id="today_view">
             
             {/* Header statistics panel */}
-            <header className="bg-white rounded-[16px] border border-slate-150 p-6 flex items-center justify-between gap-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]" id="today_header">
-              <div className="space-y-2">
-                <span className="px-2.5 py-1 bg-rose-550 text-white text-[10px] font-bold rounded-full uppercase tracking-wider inline-block bg-[var(--color-primary)]">
+            <header className="bg-white rounded-2xl border border-slate-200/60 p-6 flex items-center justify-between gap-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]" id="today_header">
+              <div className="space-y-2.5">
+                <span className="px-3 py-1 text-white text-[10px] font-bold rounded-full uppercase tracking-wider inline-block bg-[var(--color-primary)] shadow-sm shadow-[var(--color-primary)]/20">
                   Primary Flow Focus
                 </span>
                 <h2 className="text-xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
                   今日规划时空轴
                 </h2>
-                <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                <div className="text-xs text-slate-500 flex items-center gap-2">
                   <Calendar className="w-3.5 h-3.5" style={{ color: styleContext.primary }} />
                   <span className="font-semibold text-slate-600">聚焦选期:</span>
-                  <input 
+                  <input
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 outline-none hover:border-slate-400 px-3 py-1 font-mono rounded-lg text-xs text-slate-700 font-bold"
+                    className="bg-slate-50 border border-slate-200 outline-none hover:border-slate-300 focus:border-[var(--color-primary)] px-3 py-1.5 font-mono rounded-xl text-xs text-slate-700 font-bold transition-colors"
                   />
                 </div>
               </div>
 
               {/* Mini Today Category Stats Recharts Chart */}
-              <div className="w-[320px] h-[100px] bg-slate-50 border border-slate-200/50 rounded-xl p-3 flex flex-col justify-between" id="today_header_chart">
-                <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 tracking-wider">
+              <div className="w-[320px] h-[100px] bg-slate-50/80 border border-slate-200/40 rounded-xl p-3 flex flex-col justify-between" id="today_header_chart">
+                <div className="flex items-center justify-between text-[9px] font-semibold text-slate-400 tracking-wider">
                   <span>累计专注板块 (分钟)</span>
                   {todayCategoryFocusData.length > 0 && (
-                    <span className="text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-full font-mono">
+                    <span className="font-bold px-2 py-0.5 rounded-full font-mono" style={{ color: styleContext.primary, backgroundColor: styleContext.primaryLight }}>
                       已专注 {todayCategoryFocusData.reduce((acc, c) => acc + c.minutes, 0)}m
                     </span>
                   )}
@@ -861,17 +849,17 @@ export default function App() {
               </div>
 
               {/* Statistics values summary indicators */}
-              <div className="flex gap-4">
-                <div className="bg-slate-100 hover:bg-slate-200 transition-colors rounded-xl px-4 py-2.5 text-center min-w-[70px]">
-                  <p className="text-[10px] text-slate-400 font-bold">待完成</p>
-                  <p className="text-base font-extrabold text-slate-800">
-                    {tasks.filter(t => t.status === 'TODO' || t.status === 'IN_PROGRESS').length} 项
+              <div className="flex gap-3">
+                <div className="bg-slate-50 hover:bg-slate-100 transition-colors rounded-xl px-5 py-3 text-center min-w-[80px] border border-slate-200/40">
+                  <p className="text-[10px] text-slate-400 font-semibold">待完成</p>
+                  <p className="text-lg font-extrabold text-slate-700 mt-0.5">
+                    {tasks.filter(t => t.status === 'TODO' || t.status === 'IN_PROGRESS').length}
                   </p>
                 </div>
-                <div className="bg-emerald-50 rounded-xl px-4 py-2.5 text-center min-w-[70px]">
-                  <p className="text-[10px] text-emerald-600 font-bold">已完结</p>
-                  <p className="text-base font-extrabold text-emerald-600">
-                    {tasks.filter(t => t.status === 'DONE').length} 项
+                <div className="bg-emerald-50 hover:bg-emerald-100/60 transition-colors rounded-xl px-5 py-3 text-center min-w-[80px] border border-emerald-200/40">
+                  <p className="text-[10px] text-emerald-600 font-semibold">已完结</p>
+                  <p className="text-lg font-extrabold text-emerald-600 mt-0.5">
+                    {tasks.filter(t => t.status === 'DONE').length}
                   </p>
                 </div>
               </div>
@@ -880,54 +868,53 @@ export default function App() {
 
             {/* Wrapup alert after stopwatch session stops */}
             {lastFinishedSessionTask && (
-              <div className="bg-white border-2 border-dashed border-rose-300 rounded-[16px] p-5 flex items-center justify-between gap-4 shadow-sm animate-in fade-in zoom-in-95" id="feedback_panel">
+              <div className="bg-white border-2 border-dashed border-rose-200 rounded-2xl p-5 flex items-center justify-between gap-4 shadow-sm animate-in fade-in zoom-in-95" id="feedback_panel">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 font-bold">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-lg shadow-sm">
                     💡
                   </div>
                   <div>
-                    <h4 className="font-extrabold text-xs text-slate-800">完成了刚才的心流阶？要顺手标记归档吗？</h4>
-                    <p className="text-[11px] text-slate-500 mt-1">主线聚焦规划: <strong className="text-rose-600">「{lastFinishedSessionTask.title}」</strong></p>
+                    <h4 className="font-bold text-sm text-slate-800">完成了刚才的心流阶段？</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">主线聚焦: <strong className="text-rose-600">「{lastFinishedSessionTask.title}」</strong></p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => {
                       handleUpdateTaskStatus(lastFinishedSessionTask.id, 'DONE');
                       setLastFinishedSessionTask(null);
                     }}
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold px-3.5 py-2 rounded-lg shadow-sm transition"
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm shadow-emerald-200/40 transition-all hover:scale-[1.02]"
                   >
-                    ✓ 完美标记已完结
+                    ✓ 完美标记
                   </button>
                   <button
                     onClick={() => setLastFinishedSessionTask(null)}
-                    className="text-slate-400 hover:bg-slate-100 text-[11px] font-bold px-3.5 py-2 rounded-lg transition"
+                    className="text-slate-400 hover:bg-slate-100 text-xs font-semibold px-4 py-2 rounded-xl transition"
                   >
-                    保留在今天清单
+                    稍后处理
                   </button>
                 </div>
               </div>
             )}
 
             {/* Flat rapid quick dispatch bar */}
-            <div className="bg-white border border-slate-150 rounded-[12px] p-4 flex items-center gap-4 shadow-xs">
-              <input 
+            <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex items-center gap-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+              <input
                 type="text"
-                placeholder="💡 行动快马加鞭，在此规划今日的关键专注标的..."
+                placeholder="💡 快速添加今日行动计划..."
                 value={taskFormTitle}
                 onChange={(e) => setTaskFormTitle(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleCreateTask();
                 }}
-                className="flex-1 text-xs border border-slate-150 bg-slate-50/70 p-2.5 rounded-lg outline-none focus:border-rose-300 bg-white font-bold transition-all text-slate-850"
+                className="flex-1 text-sm border border-slate-200 bg-slate-50/50 p-2.5 rounded-xl outline-none focus:border-[var(--color-primary)] focus:bg-white focus:shadow-sm font-semibold transition-all text-slate-800 placeholder:text-slate-300"
               />
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400">项目分类</span>
-                <select 
+              <div className="flex items-center gap-2.5">
+                <select
                   value={taskFormCategory}
                   onChange={(e) => setTaskFormCategory(Number(e.target.value))}
-                  className="px-3 py-2 text-xs border border-slate-150 bg-white rounded-lg text-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-50"
+                  className="px-3 py-2 text-xs border border-slate-200 bg-white rounded-xl text-slate-600 font-semibold outline-none cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -937,147 +924,155 @@ export default function App() {
 
                 <button
                   onClick={() => handleCreateTask()}
-                  className={`text-white font-bold text-xs px-4 py-2.5 rounded-lg transition shadow-xs flex items-center gap-1 cursor-pointer`}
+                  className="text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all shadow-sm shadow-[var(--color-primary)]/20 hover:shadow-md hover:scale-[1.02] flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
                   style={{ backgroundColor: styleContext.primary }}
                 >
-                  <Plus className="w-3.5 h-3.5" /> 快速派遣人次
+                  <Plus className="w-3.5 h-3.5" /> 快速派遣
                 </button>
               </div>
             </div>
 
             {/* Timeline Layout */}
-            <div className="bg-white border border-slate-150 rounded-[16px] p-8 shadow-sm">
-              <h3 className="font-extrabold text-sm/none text-slate-700 mb-8 border-l-4 pl-3.5" style={{ borderColor: styleContext.primary }}>
-                Today's Core Progression 行动轨迹轴
+            <div className="bg-white border border-slate-200/60 rounded-2xl p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+              <h3 className="font-extrabold text-sm text-slate-700 mb-8 border-l-4 pl-3.5" style={{ borderColor: styleContext.primary }}>
+                行动轨迹轴
               </h3>
 
               {tasks.length > 0 ? (
-                <div className="relative pl-6 border-l-2 ml-4 space-y-8" style={{ borderColor: styleContext.primary }}>
-                  
+                <div className="relative pl-8 border-l-2 ml-4 space-y-6" style={{ borderColor: styleContext.secondary }}>
+
                   {tasks.map(task => {
                     const cat = categories.find(c => c.id === task.categoryId);
                     const focusMins = getTaskFocusMinutes(task.id);
-                    
+
                     // node color states
-                    let nodeDotClass = "bg-white border-2 border-slate-350";
+                    let nodeDotClass = "bg-white border-2 border-slate-300";
                     let nodeInnerDotColor = "transparent";
-                    
+
                     if (task.status === 'IN_PROGRESS') {
-                      nodeDotClass = "bg-white animate-pulse shadow-md cursor-pointer ring-4 ring-rose-100";
+                      nodeDotClass = "bg-white shadow-md ring-4 ring-[var(--color-primary)]/15";
                       nodeInnerDotColor = styleContext.primary;
                     } else if (task.status === 'DONE') {
                       nodeDotClass = "bg-emerald-100 border-2 border-emerald-400";
-                      nodeInnerDotColor = "#86efac";
+                      nodeInnerDotColor = "#34d399";
                     } else if (task.status === 'NOT_DONE') {
                       nodeDotClass = "bg-rose-50 border-2 border-rose-300";
                       nodeInnerDotColor = "#fca5a5";
                     }
 
                     return (
-                      <div key={task.id} className="relative group/card">
-                        
-                        {/* Timeline Circle Bullet Node Element */}
-                        <div 
-                          className={`absolute -left-[32px] top-4 w-4.5 h-4.5 rounded-full flex items-center justify-center transition-all ${nodeDotClass}`}
-                          style={{ borderColor: task.status === 'IN_PROGRESS' ? styleContext.primary : undefined }}
+                      <div key={task.id} className="relative group/card fade-in-up">
+
+                        {/* Timeline Circle Bullet Node */}
+                        <div
+                          className={`absolute -left-[37px] top-5 w-4 h-4 rounded-full flex items-center justify-center transition-all duration-200 ${nodeDotClass}`}
+                          style={task.status === 'IN_PROGRESS' ? { borderColor: styleContext.primary } : undefined}
                         >
-                          <div 
-                            className={`w-2 h-2 rounded-full`} 
+                          <div
+                            className="w-1.5 h-1.5 rounded-full transition-colors"
                             style={{ backgroundColor: nodeInnerDotColor }}
                           />
                         </div>
 
-                        {/* Interactive Task Card Box container */}
-                        <div 
-                          className={`bg-white border-2 p-5 rounded-[12px] shadow-xs cursor-pointer select-none transition-all duration-200 ${
-                            task.status === 'IN_PROGRESS' 
-                              ? 'border-rose-400 shadow bg-rose-50/20' 
-                              : 'border-slate-150 hover:bg-[var(--color-light)] hover:border-[var(--color-primary)] hover:border-2'
+                        {/* Interactive Task Card */}
+                        <div
+                          className={`bg-white border-2 p-5 rounded-xl transition-all duration-200 select-none ${
+                            task.status === 'IN_PROGRESS'
+                              ? 'border-[var(--color-primary)] shadow-md bg-[var(--color-light)]'
+                              : task.status === 'DONE'
+                                ? 'border-slate-200/60 bg-slate-50/30'
+                                : 'border-slate-200/60 hover:border-[var(--color-primary)]/40 hover:shadow-sm hover:bg-[var(--color-light)]'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-4">
-                            
-                            <div className="space-y-1.5 flex-1 min-w-0">
-                              <h4 className={`text-sm tracking-tight font-extrabold ${task.status === 'DONE' ? 'text-slate-400 line-through font-medium' : 'text-slate-800'}`}>
+
+                            <div className="space-y-2 flex-1 min-w-0">
+                              <h4 className={`text-sm tracking-tight font-bold leading-snug ${task.status === 'DONE' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
                                 {task.title}
                               </h4>
-                              
-                              <div className="flex items-center gap-3">
-                                <span className="text-[11px] font-bold text-slate-450 text-slate-400 flex items-center gap-1.5 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200/40">
-                                  🏷️ {cat ? cat.name : '未分类板块'}
+
+                              <div className="flex items-center gap-2.5 flex-wrap">
+                                <span
+                                  className="text-[10px] font-bold flex items-center gap-1 px-2 py-0.5 rounded-full border"
+                                  style={{
+                                    color: cat ? cat.color : '#64748b',
+                                    backgroundColor: (cat ? cat.color : '#94a3b8') + '10',
+                                    borderColor: (cat ? cat.color : '#94a3b8') + '20'
+                                  }}
+                                >
+                                  {cat ? cat.name : '未分类'}
                                 </span>
 
-                                {(task.status === 'IN_PROGRESS' || task.status === 'DONE' || focusMins > 0) && (
-                                  <span className="text-[11px] font-bold text-indigo-500 font-mono animate-pulse">
-                                    ⏱️ 累积记录时长: {focusMins} 分钟
+                                {focusMins > 0 && (
+                                  <span className="text-[10px] font-semibold text-indigo-500 font-mono bg-indigo-50 px-2 py-0.5 rounded-full">
+                                    ⏱ {focusMins} 分钟
                                   </span>
                                 )}
 
                                 {task.status === 'NOT_DONE' && (
                                   <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full">
-                                    搁置
+                                    已搁置
+                                  </span>
+                                )}
+
+                                {task.status === 'IN_PROGRESS' && (
+                                  <span className="text-[10px] font-bold bg-[var(--color-light)] px-2 py-0.5 rounded-full animate-pulse" style={{ color: styleContext.primary }}>
+                                    专注进行中
                                   </span>
                                 )}
                               </div>
                             </div>
 
-                            {/* Active control panel revealed on card / hover operations */}
-                            <div className="flex items-center gap-1.5 opacity-90 sm:opacity-0 group-hover/card:opacity-100 transition-all duration-300">
-                              
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-1.5 opacity-90 sm:opacity-0 group-hover/card:opacity-100 transition-all duration-200 shrink-0">
+
                               {task.status !== 'IN_PROGRESS' && task.status !== 'DONE' && (
                                 <button
                                   onClick={() => handleStartSession(task)}
-                                  className="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition cursor-pointer"
-                                  title="立即进入番茄心流状态"
+                                  className="px-2.5 py-1.5 bg-[var(--color-primary)]/10 rounded-lg hover:bg-[var(--color-primary)]/20 transition-all text-[10px] font-bold cursor-pointer"
+                                  style={{ color: styleContext.primary }}
+                                  title="开启心流专注"
                                 >
-                                  ▶️ 开启
+                                  ▶ 专注
                                 </button>
                               )}
 
                               {task.status === 'IN_PROGRESS' && (
                                 <button
                                   onClick={handleStopSession}
-                                  className="px-2.5 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 text-[10px] font-extrabold transition cursor-pointer flex items-center gap-1"
+                                  className="px-2.5 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 text-[10px] font-bold transition cursor-pointer flex items-center gap-1"
                                 >
                                   <Square className="w-2.5 h-2.5 text-rose-400 fill-current" />
-                                  暂停专注
+                                  停止
                                 </button>
                               )}
 
                               {task.status !== 'DONE' && (
                                 <button
                                   onClick={() => handleUpdateTaskStatus(task.id, 'DONE')}
-                                  className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition cursor-pointer"
-                                  title="顺利标记完成"
+                                  className="px-2.5 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition text-[10px] font-bold cursor-pointer"
+                                  title="标记完成"
                                 >
-                                  ✓ 已完结
+                                  ✓ 完成
                                 </button>
                               )}
 
                               {task.status !== 'NOT_DONE' && task.status !== 'DONE' && (
                                 <button
                                   onClick={() => handleUpdateTaskStatus(task.id, 'NOT_DONE')}
-                                  className="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition cursor-pointer"
-                                  title="暂时由于事务庞杂转拨入搁置排期"
+                                  className="px-2.5 py-1.5 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-100 transition text-[10px] font-bold cursor-pointer"
+                                  title="搁置"
                                 >
-                                  ✗ 未完
+                                  ✗ 搁置
                                 </button>
                               )}
 
-                              {task.status === 'DONE' && (
+                              {(task.status === 'DONE' || task.status === 'NOT_DONE') && (
                                 <button
                                   onClick={() => handleUpdateTaskStatus(task.id, 'TODO')}
-                                  className="p-1 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-505 text-[10px] font-bold rounded-lg transition"
+                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded-lg transition"
                                 >
-                                  更正待办
-                                </button>
-                              )}
-                              {task.status === 'NOT_DONE' && (
-                                <button
-                                  onClick={() => handleUpdateTaskStatus(task.id, 'TODO')}
-                                  className="p-1 px-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 text-[10px] font-bold rounded-lg transition"
-                                >
-                                  重启
+                                  重置
                                 </button>
                               )}
 
@@ -1092,10 +1087,12 @@ export default function App() {
 
                 </div>
               ) : (
-                <div className="p-12 text-center text-slate-400">
-                  <ClipboardList className="w-12 h-12 mx-auto stroke-1" style={{ color: styleContext.primary }} />
-                  <p className="text-xs font-black uppercase tracking-wider mt-4">今日暂且是一块待开垦的长卷白幅</p>
-                  <p className="text-[11px] text-slate-450 mt-1">您可在上方输入框中敲入核心指令派遣行动计划！</p>
+                <div className="py-16 text-center">
+                  <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: styleContext.primaryLight }}>
+                    <ClipboardList className="w-8 h-8 stroke-[1.5]" style={{ color: styleContext.primary }} />
+                  </div>
+                  <p className="text-sm font-bold text-slate-600">今日暂无行动计划</p>
+                  <p className="text-xs text-slate-400 mt-1.5">在上方输入框添加你的今日行动项</p>
                 </div>
               )}
 
@@ -1107,41 +1104,41 @@ export default function App() {
         {activeTab === 'tasks' && (
           <div className="space-y-6" id="tasks_view">
             
-            <header className="bg-white rounded-[16px] border border-slate-150 p-6 flex flex-col gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.02)]" id="tasks_header">
-              <span className="px-3 py-1 bg-rose-50 text-rose-600 text-[10px] font-bold rounded-full w-fit">
+            <header className="bg-white rounded-2xl border border-slate-200/60 p-6 flex flex-col gap-2 shadow-[0_2px_12px_rgba(0,0,0,0.04)]" id="tasks_header">
+              <span className="px-3 py-1 text-[10px] font-bold rounded-full w-fit" style={{ color: styleContext.primary, backgroundColor: styleContext.primaryLight }}>
                 Global Task Reserves
               </span>
               <h2 className="text-xl font-extrabold text-slate-800 mt-1">全局储备与规划中心</h2>
-              <p className="text-xs text-slate-500 font-medium">配置、调度未来日期及历届滞存指令集的核心仓库，支持各种多级交叉状态过滤。</p>
+              <p className="text-xs text-slate-500 font-medium">配置、调度未来日期及历届滞存指令集的核心仓库，支持多级交叉状态过滤。</p>
             </header>
 
             {/* Split controls block: Left Add Form, Right Filter Results List */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
-              <div className="bg-white border border-slate-200 p-6 rounded-[16px] space-y-4 h-fit shadow-xs">
-                <h3 className="font-extrabold text-xs text-slate-850 uppercase tracking-wider flex items-center gap-2 border-b border-stone-105 pb-3 pb-2.5">
-                  <Plus className="w-4 h-4 text-rose-500" />
+              <div className="bg-white border border-slate-200/60 p-6 rounded-2xl space-y-4 h-fit shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+                <h3 className="font-bold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Plus className="w-4 h-4" style={{ color: styleContext.primary }} />
                   新建储备规划项
                 </h3>
-                
+
                 <form onSubmit={(e) => { e.preventDefault(); handleCreateTask(); }} className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-slate-400 select-none uppercase pl-1">行动主题与描述</label>
-                    <input 
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">行动主题</label>
+                    <input
                       type="text"
-                      placeholder="e.g. 审定核心业务数据，优化排期方案"
+                      placeholder="e.g. 审定核心业务数据"
                       value={taskFormTitle}
                       onChange={(e) => setTaskFormTitle(e.target.value)}
-                      className="w-full text-xs border border-slate-200 bg-slate-50 p-2.5 rounded-lg focus:bg-white outline-none focus:border-rose-300 font-bold"
+                      className="w-full text-xs border border-slate-200 bg-slate-50/50 p-2.5 rounded-xl focus:bg-white outline-none focus:border-[var(--color-primary)] font-semibold transition-all"
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-slate-400 select-none uppercase pl-1">归属板块分类标签</label>
-                    <select 
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">归属分类</label>
+                    <select
                       value={taskFormCategory}
                       onChange={(e) => setTaskFormCategory(Number(e.target.value))}
-                      className="w-full text-xs border border-slate-200 bg-white p-2.5 rounded-lg outline-none cursor-pointer hover:bg-slate-50 font-bold"
+                      className="w-full text-xs border border-slate-200 bg-white p-2.5 rounded-xl outline-none cursor-pointer hover:bg-slate-50 font-semibold transition-colors"
                     >
                       {categories.map(cat => (
                         <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -1150,22 +1147,22 @@ export default function App() {
                     </select>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-slate-400 select-none uppercase pl-1">选定排期执行日期</label>
-                    <input 
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">排期日期</label>
+                    <input
                       type="date"
                       value={taskFormDate}
                       onChange={(e) => setTaskFormDate(e.target.value)}
-                      className="w-full text-xs border border-slate-200 bg-white p-2.5 rounded-lg outline-none cursor-pointer font-bold hover:bg-slate-50"
+                      className="w-full text-xs border border-slate-200 bg-white p-2.5 rounded-xl outline-none cursor-pointer font-semibold hover:bg-slate-50 transition-colors"
                     />
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full text-white text-xs font-bold py-3 rounded-lg shadow-sm font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    className="w-full text-white text-xs font-bold py-3 rounded-xl shadow-sm shadow-[var(--color-primary)]/20 flex items-center justify-center gap-1.5 transition-all hover:shadow-md hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                     style={{ backgroundColor: styleContext.primary }}
                   >
-                    确认将此行动归档入库
+                    <Plus className="w-3.5 h-3.5" /> 确认归档入库
                   </button>
                 </form>
               </div>
@@ -1173,17 +1170,17 @@ export default function App() {
               {/* Multi-Filters columns and detailed items list */}
               <div className="lg:col-span-2 space-y-4">
                 
-                <div className="bg-slate-100 border border-slate-200 p-4 rounded-[12px] flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                <div className="bg-slate-50/80 border border-slate-200/40 p-4 rounded-xl flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-3">
-                    
+
                     <div className="space-y-0.5">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-1">分类板块</p>
-                      <select 
-                        value={taskFilterCategory} 
+                      <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest pl-1">分类</p>
+                      <select
+                        value={taskFilterCategory}
                         onChange={(e) => setTaskFilterCategory(e.target.value)}
-                        className="px-2.5 py-1.5 text-xs border border-slate-200 bg-white rounded-lg text-slate-700 font-bold"
+                        className="px-2.5 py-1.5 text-xs border border-slate-200 bg-white rounded-lg text-slate-700 font-semibold outline-none transition-colors hover:border-slate-300"
                       >
-                        <option value="all">查看全部主题</option>
+                        <option value="all">全部</option>
                         {categories.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -1191,42 +1188,42 @@ export default function App() {
                     </div>
 
                     <div className="space-y-0.5">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-1">执行进展</p>
-                      <select 
-                        value={taskFilterStatus} 
+                      <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest pl-1">状态</p>
+                      <select
+                        value={taskFilterStatus}
                         onChange={(e) => setTaskFilterStatus(e.target.value)}
-                        className="px-2.5 py-1.5 text-xs border border-slate-200 bg-white rounded-lg text-slate-700 font-bold"
+                        className="px-2.5 py-1.5 text-xs border border-slate-200 bg-white rounded-lg text-slate-700 font-semibold outline-none transition-colors hover:border-slate-300"
                       >
-                        <option value="all">所有状态指令</option>
+                        <option value="all">全部</option>
                         <option value="TODO">待执行</option>
                         <option value="IN_PROGRESS">进行中</option>
                         <option value="DONE">已完结</option>
-                        <option value="NOT_DONE">拖延/搁置</option>
+                        <option value="NOT_DONE">已搁置</option>
                       </select>
                     </div>
 
                     <div className="space-y-0.5">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-1">日期区间范围</p>
-                      <select 
-                        value={taskFilterDateScope} 
+                      <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest pl-1">日期</p>
+                      <select
+                        value={taskFilterDateScope}
                         onChange={(e) => setTaskFilterDateScope(e.target.value as any)}
-                        className="px-2.5 py-1.5 text-xs border border-slate-200 bg-white rounded-lg text-slate-700 font-bold"
+                        className="px-2.5 py-1.5 text-xs border border-slate-200 bg-white rounded-lg text-slate-700 font-semibold outline-none transition-colors hover:border-slate-300"
                       >
-                        <option value="today">今日单日项目</option>
-                        <option value="seven-days">未来核心期 (7天)</option>
-                        <option value="all">全局指令库总集</option>
+                        <option value="today">今日</option>
+                        <option value="seven-days">未来7天</option>
+                        <option value="all">全部</option>
                       </select>
                     </div>
 
                   </div>
 
-                  <span className="text-[10px] font-bold text-slate-400 font-mono bg-white px-2.5 py-1.5 rounded-lg border">
-                    匹配: {allTasks.length} 项记录
+                  <span className="text-[10px] font-semibold text-slate-400 font-mono bg-white px-2.5 py-1.5 rounded-lg border border-slate-200/60">
+                    匹配: {allTasks.length} 项
                   </span>
                 </div>
 
-                {/* Listing of matched tasks pipeline (simplified matching list as specified) */}
-                <div className="bg-white border border-slate-200 rounded-[12px] overflow-hidden">
+                {/* Task list */}
+                <div className="bg-white border border-slate-200/60 rounded-2xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
                   <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
                     {allTasks.filter(t => {
                       if (taskFilterCategory !== 'all' && t.categoryId !== Number(taskFilterCategory)) return false;
@@ -1245,23 +1242,23 @@ export default function App() {
                       const cat = categories.find(c => c.id === t.categoryId);
                       const isComplete = t.status === 'DONE';
                       return (
-                        <div key={t.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-all">
-                          <div className="space-y-1 pr-4">
-                            <h4 className={`text-xs font-bold leading-normal ${isComplete ? 'text-slate-400 line-through font-medium' : 'text-slate-800'}`}>
+                        <div key={t.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-all group/task">
+                          <div className="space-y-1.5 pr-4">
+                            <h4 className={`text-xs font-bold leading-normal ${isComplete ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                               {t.title}
                             </h4>
                             <div className="flex items-center gap-2">
-                              <span 
-                                className="text-[9px] px-2 py-0.5 rounded-full border font-black uppercase tracking-wider"
-                                style={{ 
-                                  color: cat ? cat.color : '#64748b', 
-                                  backgroundColor: (cat ? cat.color : '#fb7185') + '12',
-                                  borderColor: (cat ? cat.color : '#fb7185') + '25'
+                              <span
+                                className="text-[9px] px-2 py-0.5 rounded-full border font-bold uppercase tracking-wider"
+                                style={{
+                                  color: cat ? cat.color : '#64748b',
+                                  backgroundColor: (cat ? cat.color : '#94a3b8') + '10',
+                                  borderColor: (cat ? cat.color : '#94a3b8') + '20'
                                 }}
                               >
                                 {cat ? cat.name : '通用'}
                               </span>
-                              <span className="text-[9px] text-slate-400 font-mono font-bold flex items-center gap-1">
+                              <span className="text-[9px] text-slate-400 font-mono font-semibold flex items-center gap-1">
                                 <Calendar className="w-3 h-3 text-slate-300" />
                                 {t.plannedDate}
                               </span>
@@ -1269,21 +1266,24 @@ export default function App() {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0 select-none">
-                            <select 
+                            <select
                               value={t.status}
                               onChange={(e) => handleUpdateTaskStatus(t.id, e.target.value as any)}
-                              className="px-2 py-1 text-[10px] border border-slate-200 bg-white rounded-lg text-slate-700 font-bold outline-none"
+                              className="px-2 py-1 text-[10px] border border-slate-200 bg-white rounded-lg text-slate-600 font-semibold outline-none transition-colors hover:border-slate-300"
                             >
                               <option value="TODO">待执行</option>
                               <option value="IN_PROGRESS">专注中</option>
                               <option value="DONE">已完结</option>
                               <option value="NOT_DONE">未完成</option>
                             </select>
-                            
+
                             {!isComplete && (
                               <button
                                 onClick={() => handleStartSession(t)}
-                                className="p-1 px-2.5 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-extrabold hover:bg-rose-100 transition"
+                                className="px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all"
+                                style={{ color: styleContext.primary, backgroundColor: styleContext.primaryLight }}
+                                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = styleContext.secondary + '40')}
+                                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = styleContext.primaryLight)}
                               >
                                 ▶ 专注
                               </button>
@@ -1312,21 +1312,21 @@ export default function App() {
         {activeTab === 'categories' && (
           <div className="space-y-6" id="categories_view">
             
-            <header className="bg-white rounded-[16px] border border-slate-150 p-6 flex items-center justify-between gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]" id="categories_header">
+            <header className="bg-white rounded-2xl border border-slate-200/60 p-6 flex items-center justify-between gap-4 shadow-[0_2px_12px_rgba(0,0,0,0.04)]" id="categories_header">
               <div>
-                <span className="px-3 py-1 bg-rose-50 text-[10px] text-rose-600 font-bold rounded-full uppercase tracking-wider inline-block">
+                <span className="px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider inline-block" style={{ color: styleContext.primary, backgroundColor: styleContext.primaryLight }}>
                   Categories Matrix
                 </span>
                 <h2 className="text-xl font-extrabold text-slate-800 mt-2">分类令牌设定中心</h2>
-                <p className="text-xs text-slate-500 font-medium">设计多级色彩和排序归一权重，使专注数据分析能精密关联在特定的业务板块中。</p>
+                <p className="text-xs text-slate-500 font-medium">设计多级色彩和排序权重，使专注数据分析能精密关联在特定板块中。</p>
               </div>
 
               <button
                 onClick={() => handleOpenCategoryModal(null)}
-                className="text-white font-bold text-xs px-4 py-3 rounded-lg shadow transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                className="text-white font-bold text-xs px-5 py-3 rounded-xl shadow-sm shadow-[var(--color-primary)]/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                 style={{ backgroundColor: styleContext.primary }}
               >
-                <Plus className="w-3.5 h-3.5" /> 创设全新板块分类
+                <Plus className="w-3.5 h-3.5" /> 新建分类
               </button>
             </header>
 
@@ -1336,45 +1336,45 @@ export default function App() {
               {categories.map(cat => {
                 const associatedTasks = allTasks.filter(t => t.categoryId === cat.id);
                 return (
-                  <div 
-                    key={cat.id} 
-                    className="bg-white border-2 border-slate-200/80 rounded-[12px] shadow-sm relative overflow-hidden flex flex-col justify-between hover:scale-[1.02] hover:border-[var(--color-primary)] transition-all duration-300 group"
+                  <div
+                    key={cat.id}
+                    className="bg-white border border-slate-200/60 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.03)] relative overflow-hidden flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group"
                   >
-                    {/* Top colored stripe bar banner height 60px as demanded exactly */}
-                    <div 
-                      className="h-[60px] w-full transition-all duration-300 shadow-inner flex items-center px-4"
+                    {/* Top colored stripe */}
+                    <div
+                      className="h-[56px] w-full flex items-end px-4 pb-2.5"
                       style={{ backgroundColor: cat.color }}
                     >
-                      <span className="text-[10px] uppercase font-bold text-white tracking-widest bg-black/10 px-2 py-0.5 rounded-full">
-                        RANK: {cat.sortOrder}
+                      <span className="text-[10px] uppercase font-bold text-white/90 tracking-widest bg-black/10 backdrop-blur-sm px-2.5 py-0.5 rounded-full">
+                        #{cat.sortOrder}
                       </span>
                     </div>
 
-                    {/* Bottom detailed textual metrics info segment */}
+                    {/* Bottom info */}
                     <div className="p-4 flex-1 flex flex-col justify-between">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <h4 className="font-extrabold text-slate-800 text-sm tracking-tight pt-1">
+                          <h4 className="font-bold text-slate-800 text-sm tracking-tight">
                             {cat.name}
                           </h4>
-                          <span className="text-[11px] text-slate-450 text-slate-400 font-bold font-mono">
-                            {associatedTasks.length} 个关联指令项
+                          <span className="text-[11px] text-slate-400 font-semibold font-mono">
+                            {associatedTasks.length} 项关联
                           </span>
                         </div>
 
-                        {/* Options button group revealed cleanly on hover as requested */}
-                        <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white rounded-lg shadow-sm">
+                        {/* Hover action buttons */}
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-50 rounded-lg p-0.5">
                           <button
                             onClick={() => handleOpenCategoryModal(cat)}
-                            className="p-1.5 hover:bg-slate-100 text-slate-500 rounded-md transition"
-                            title="配置并修改字段"
+                            className="p-1.5 hover:bg-white text-slate-500 rounded-md transition shadow-sm"
+                            title="编辑"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteCategory(cat.id)}
-                            className="p-1.5 hover:bg-rose-50 text-rose-600 rounded-md transition"
-                            title="抹消该分类"
+                            className="p-1.5 hover:bg-rose-50 text-rose-500 rounded-md transition"
+                            title="删除"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1387,118 +1387,124 @@ export default function App() {
                 );
               })}
 
-              {/* Dotted border placeholder box to spawn Quick modal category form as requested */}
-              <div 
+              {/* Add new category placeholder */}
+              <div
                 onClick={() => handleOpenCategoryModal(null)}
-                className="bg-stone-50 hover:bg-stone-100 border-2 border-dashed border-stone-300 rounded-[12px] h-[142px] flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:border-rose-400 hover:text-rose-600 transition-all group select-none"
+                className="bg-slate-50/50 hover:bg-white border-2 border-dashed border-slate-200 rounded-xl h-[138px] flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:border-[var(--color-primary)]/40 transition-all duration-300 group select-none"
               >
-                <Plus className="w-7 h-7 text-stone-400 group-hover:scale-110 transition group-hover:text-[var(--color-primary)] mb-2" />
-                <span className="text-xs font-bold text-slate-500 group-hover:text-[var(--color-primary)]">
-                  + 创设空位板块档案
+                <Plus className="w-6 h-6 text-slate-300 group-hover:scale-110 transition-transform duration-200 group-hover:text-[var(--color-primary)] mb-2" />
+                <span className="text-xs font-semibold text-slate-400 group-hover:text-[var(--color-primary)] transition-colors">
+                  新建分类
                 </span>
-                <span className="text-[9px] text-slate-400 mt-0.5">多重维度的业务色彩令</span>
               </div>
 
             </div>
 
-            {/* Create / Edit Category Local overlay dialog modal block */}
+            {/* Create / Edit Category Modal */}
             {isCategoryModalOpen && (
-              <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in" id="category_modal">
-                <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl max-w-sm w-full p-6 space-y-5 animate-in zoom-in-95 duration-150" id="category_modal_card">
-                  
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                    <h3 className="font-extrabold text-sm text-slate-800">
-                      {editingCategory ? '编辑分类板块' : '创设全新分类标签'}
+              <div
+                className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+                id="category_modal"
+                onClick={(e) => { if (e.target === e.currentTarget) setIsCategoryModalOpen(false); }}
+                onKeyDown={(e) => { if (e.key === 'Escape') setIsCategoryModalOpen(false); }}
+              >
+                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-2xl max-w-sm w-full p-6 space-y-5 animate-in zoom-in-95 duration-200" id="category_modal_card">
+
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="font-bold text-sm text-slate-800">
+                      {editingCategory ? '编辑分类' : '新建分类'}
                     </h3>
-                    <button 
+                    <button
                       onClick={() => setIsCategoryModalOpen(false)}
-                      className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-lg transition"
+                      className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-xl transition"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">标签名称</label>
-                      <input 
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">名称</label>
+                      <input
                         type="text"
-                        placeholder="e.g. 审议系统架构 / 会议纪要"
+                        placeholder="e.g. 系统架构 / 会议纪要"
                         value={catFormName}
                         onChange={(e) => setCatFormName(e.target.value)}
-                        className="w-full text-xs border border-slate-200 bg-slate-50 p-2 text-slate-800 rounded-lg outline-none focus:border-rose-300 font-bold"
+                        autoFocus
+                        className="w-full text-xs border border-slate-200 bg-slate-50/50 p-2.5 text-slate-800 rounded-xl outline-none focus:border-[var(--color-primary)] focus:bg-white font-semibold transition-all"
                       />
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 flex items-center gap-1">
-                        视觉色彩标签
+                        色彩标签
                       </label>
-                      
-                      <div className="grid grid-cols-4 gap-2 p-2 bg-slate-50 border rounded-xl">
+
+                      <div className="grid grid-cols-8 gap-1.5 p-3 bg-slate-50/50 border border-slate-200/40 rounded-xl">
                         {PRESET_COLORS.map(c => (
                           <button
                             key={c.hex}
                             type="button"
                             onClick={() => setCatFormColor(c.hex)}
                             title={c.label}
-                            className={`w-full h-7 rounded-md border transition-all relative ${
-                              catFormColor === c.hex 
-                                ? 'scale-110 ring-2 ring-rose-450 ring-offset-1 border-white shadow-sm' 
-                                : 'hover:scale-105 border-slate-200'
+                            className={`w-full aspect-square rounded-lg border-2 transition-all duration-150 relative ${
+                              catFormColor === c.hex
+                                ? 'scale-110 ring-2 ring-offset-2 border-white shadow-md'
+                                : 'hover:scale-105 border-transparent'
                             }`}
-                            style={{ backgroundColor: c.hex }}
+                            style={{ backgroundColor: c.hex, ringColor: c.hex }}
                           >
                             {catFormColor === c.hex && (
-                              <Check className="w-3 h-3 text-white absolute inset-0 m-auto stroke-3" />
+                              <Check className="w-3 h-3 text-white absolute inset-0 m-auto stroke-[3]" />
                             )}
                           </button>
                         ))}
                       </div>
 
-                      {/* Manual Hex Override Input slot */}
+                      {/* Custom color input */}
                       <div className="flex items-center gap-2">
-                        <input 
+                        <input
                           type="color"
                           value={catFormColor}
                           onChange={(e) => setCatFormColor(e.target.value)}
-                          className="w-8 h-8 rounded-lg cursor-pointer border shrink-0 hover:scale-105 transition"
+                          className="w-8 h-8 rounded-lg cursor-pointer border border-slate-200 shrink-0 hover:scale-105 transition"
                         />
-                        <input 
+                        <input
                           type="text"
                           value={catFormColor}
                           onChange={(e) => setCatFormColor(e.target.value)}
-                          className="flex-1 px-3 py-1.5 text-xs text-slate-800 rounded-lg border uppercase border-slate-200 outline-none font-mono font-bold"
+                          className="flex-1 px-3 py-1.5 text-xs text-slate-700 rounded-xl border border-slate-200 outline-none font-mono font-bold uppercase transition-colors focus:border-[var(--color-primary)]"
                           placeholder="#fb7185"
                         />
+                        <div className="w-8 h-8 rounded-lg border border-slate-200" style={{ backgroundColor: catFormColor }}></div>
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">排序优先排序权重 (数值越大靠前显示)</label>
-                      <input 
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">排序权重</label>
+                      <input
                         type="number"
                         placeholder="0"
                         value={catFormSort}
                         onChange={(e) => setCatFormSort(Number(e.target.value))}
-                        className="w-full text-xs border border-slate-200 bg-slate-50 p-2 rounded-lg outline-none font-sans font-bold"
+                        className="w-full text-xs border border-slate-200 bg-slate-50/50 p-2.5 rounded-xl outline-none font-semibold transition-colors focus:border-[var(--color-primary)] focus:bg-white"
                       />
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-end gap-2 pt-3 border-t">
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                     <button
                       onClick={() => setIsCategoryModalOpen(false)}
-                      className="text-slate-400 hover:bg-slate-100 text-xs font-bold px-3 py-2 rounded-lg transition"
+                      className="text-slate-400 hover:bg-slate-100 text-xs font-semibold px-4 py-2 rounded-xl transition"
                     >
                       取消
                     </button>
                     <button
                       onClick={handleSaveCategory}
-                      className="text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm"
+                      className="text-white text-xs font-bold px-5 py-2 rounded-xl transition-all shadow-sm shadow-[var(--color-primary)]/20 hover:shadow-md active:scale-[0.98]"
                       style={{ backgroundColor: styleContext.primary }}
                     >
-                      保存该分类板块
+                      {editingCategory ? '保存修改' : '创建分类'}
                     </button>
                   </div>
 
@@ -1513,52 +1519,54 @@ export default function App() {
         {activeTab === 'daily' && (
           <div className="space-y-6" id="daily_view">
             
-            <header className="bg-white rounded-[16px] border border-slate-150 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]" id="daily_header">
+            <header className="bg-white rounded-2xl border border-slate-200/60 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_2px_12px_rgba(0,0,0,0.04)]" id="daily_header">
               <div>
-                <span className="px-3 py-1 bg-rose-50 text-[10px] text-rose-600 font-bold rounded-full w-fit">
-                  Daily Analytical Metrics Dashboard
+                <span className="px-3 py-1 text-[10px] font-bold rounded-full w-fit" style={{ color: styleContext.primary, backgroundColor: styleContext.primaryLight }}>
+                  Daily Analytics
                 </span>
-                <h2 className="text-xl font-extrabold text-slate-800 mt-2">当日精细执行状况数据面板</h2>
-                <p className="text-xs text-slate-500 font-medium mt-1">自动核算计划行动完结状态与已专注分钟，采用数据可视看板呈现纯粹客观的时间运用图景。</p>
+                <h2 className="text-xl font-extrabold text-slate-800 mt-2">当日执行状况面板</h2>
+                <p className="text-xs text-slate-500 font-medium mt-1">自动核算行动完结状态与专注分钟，以纯数据可视化呈现时间运用图景。</p>
               </div>
 
               <div className="flex items-center gap-2">
-                <input 
+                <input
                   type="date"
                   value={dailyReportDate}
                   onChange={(e) => setDailyReportDate(e.target.value)}
-                  className="bg-white border border-slate-200 px-3 py-2 text-xs rounded-lg font-mono font-bold outline-none cursor-pointer"
+                  className="bg-white border border-slate-200 px-3 py-2 text-xs rounded-xl font-mono font-bold outline-none cursor-pointer hover:border-slate-300 transition-colors"
                 />
-                
+
                 <button
                   onClick={loadDailyStats}
-                  className="bg-slate-900 border border-slate-800 text-white font-bold text-xs px-4 py-2 rounded-lg transition cursor-pointer"
+                  className="bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer hover:bg-slate-800 active:scale-[0.98]"
                 >
-                  評估當日指標
+                  评估指标
                 </button>
               </div>
             </header>
 
             {/* Redesigned grid dashboard block featuring charts according strictly: "所有报告页面不显示文字总结，纯数据可视化展示" */}
             {!dailyStatsLoaded ? (
-              <div className="bg-white border border-slate-200 rounded-[16px] p-12 text-center flex flex-col items-center gap-3">
+              <div className="bg-white border border-slate-200/60 rounded-2xl p-12 text-center flex flex-col items-center gap-3">
                 <Loader2 className="w-8 h-8 animate-spin" style={{ color: styleContext.primary }} />
-                <p className="text-xs text-slate-400 font-bold">正在极速计算当天的专注记录指标...</p>
+                <p className="text-xs text-slate-400 font-semibold">正在计算当日指标...</p>
               </div>
             ) : dailyTasks.length === 0 && dailySessions.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-[16px] p-16 text-center text-slate-400">
-                <ClipboardList className="w-12 h-12 mx-auto stroke-1" style={{ color: styleContext.primary }} />
-                <p className="text-sm font-extrabold uppercase mt-4 text-slate-705">当天没有任何心流或派遣履历记录</p>
-                <p className="text-xs text-slate-400 mt-1">请尝试在上方切换另一个排期日期来查看具体的完结看板统计。</p>
+              <div className="bg-white border border-slate-200/60 rounded-2xl p-16 text-center">
+                <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: styleContext.primaryLight }}>
+                  <ClipboardList className="w-8 h-8 stroke-[1.5]" style={{ color: styleContext.primary }} />
+                </div>
+                <p className="text-sm font-bold text-slate-600">当天暂无数据记录</p>
+                <p className="text-xs text-slate-400 mt-1.5">切换日期查看其他天的统计看板</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
-                {/* Metric 1 Card: Tasks Completion Ratio Pie Chart */}
-                <div className="bg-white border border-slate-150 rounded-[16px] p-6 shadow-xs flex flex-col justify-between">
-                  <div className="pb-3 border-b">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Completion Rate</span>
-                    <h3 className="font-extrabold text-xs text-slate-750 mt-1">行动计划达成度比例</h3>
+                {/* Metric 1: Completion Rate Pie Chart */}
+                <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                  <div className="pb-3 border-b border-slate-100 border-slate-100">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest block">Completion Rate</span>
+                    <h3 className="font-bold text-xs text-slate-700 mt-1">行动达成度</h3>
                   </div>
 
                   <div className="h-[180px] flex items-center justify-center relative">
@@ -1590,7 +1598,7 @@ export default function App() {
                     </ResponsiveContainer>
                     {/* Centered big rating font percentage as requested */}
                     <div className="absolute inset-0 m-auto flex flex-col items-center justify-center w-fit h-fit select-none pointer-events-none">
-                      <span className="text-2xl font-black font-sans leading-none text-slate-850">
+                      <span className="text-2xl font-black font-sans leading-none text-slate-800">
                         {dailyTasks.length > 0 
                           ? `${Math.round((doneDailyTasksCount / dailyTasks.length) * 100)}%` 
                           : '0%'}
@@ -1602,56 +1610,56 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 text-center text-xs mt-3 select-none">
-                    <div className="bg-emerald-50 rounded-lg p-2">
-                      <p className="text-[9px] text-emerald-600 font-bold">已完结</p>
-                      <p className="font-extrabold font-mono text-emerald-600 mt-0.5">{doneDailyTasksCount}</p>
+                    <div className="bg-emerald-50 rounded-xl p-2.5 border border-emerald-100">
+                      <p className="text-[9px] text-emerald-600 font-semibold">已完结</p>
+                      <p className="font-bold font-mono text-emerald-600 mt-0.5">{doneDailyTasksCount}</p>
                     </div>
-                    <div className="bg-rose-50 rounded-lg p-2">
-                      <p className="text-[9px] text-rose-500 font-bold">待推进</p>
-                      <p className="font-extrabold font-mono text-rose-500 mt-0.5">{todoDailyTasksCount + inProgressDailyTasksCount}</p>
+                    <div className="bg-rose-50 rounded-xl p-2.5 border border-rose-100">
+                      <p className="text-[9px] text-rose-500 font-semibold">待推进</p>
+                      <p className="font-bold font-mono text-rose-500 mt-0.5">{todoDailyTasksCount + inProgressDailyTasksCount}</p>
                     </div>
-                    <div className="bg-stone-550 bg-stone-50 rounded-lg p-2">
-                      <p className="text-[9px] text-stone-500 font-bold">搁置项</p>
-                      <p className="font-extrabold font-mono text-stone-500 mt-0.5">{notDoneDailyTasksCount}</p>
+                    <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100">
+                      <p className="text-[9px] text-stone-500 font-semibold">搁置项</p>
+                      <p className="font-bold font-mono text-stone-500 mt-0.5">{notDoneDailyTasksCount}</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Metric 2 Card: Total Active Minutes and Delta Yesterday comparisons */}
-                <div className="bg-white border border-slate-150 rounded-[16px] p-6 shadow-xs flex flex-col justify-between">
-                  <div className="pb-3 border-b">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Heavy Focus Clocks</span>
-                    <h3 className="font-extrabold text-xs text-slate-755 mt-1">当日累计投入专注总量</h3>
+                {/* Metric 2: Total Focus Time */}
+                <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                  <div className="pb-3 border-b border-slate-100 border-slate-100">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest block">Focus Time</span>
+                    <h3 className="font-bold text-xs text-slate-700 mt-1">当日专注总量</h3>
                   </div>
 
-                  <div className="py-8 text-center space-y-3 flex-1 flex flex-col justify-center">
-                    <div className="inline-block p-4 rounded-full w-fit mx-auto bg-warm-50" style={{ backgroundColor: styleContext.primaryLight }}>
-                      <Award className="w-8 h-8 animate-bounce" style={{ color: styleContext.primary }} />
+                  <div className="py-6 text-center space-y-3 flex-1 flex flex-col justify-center">
+                    <div className="inline-block p-4 rounded-2xl w-fit mx-auto" style={{ backgroundColor: styleContext.primaryLight }}>
+                      <Award className="w-8 h-8" style={{ color: styleContext.primary }} />
                     </div>
                     <div>
-                      <h4 className="text-3xl font-black font-sans text-slate-800 select-all tracking-tight">
+                      <h4 className="text-3xl font-black font-sans text-slate-800 tracking-tight">
                         {dailyTotalMins} <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">分钟</span>
                       </h4>
-                      <p className="text-[11px] text-slate-400 mt-1 font-bold">
-                        相当于折合约 <span className="font-mono text-slate-700">{(dailyTotalMins / 60).toFixed(1)} 手记小时</span>
+                      <p className="text-[11px] text-slate-400 mt-1 font-semibold">
+                        约 <span className="font-mono text-slate-600">{(dailyTotalMins / 60).toFixed(1)}h</span>
                       </p>
                     </div>
                   </div>
 
-                  {/* Dynamic Yesterday Comparison indicators with Delta Percentage arrows */}
-                  <div className="bg-slate-50 border p-3.5 rounded-lg flex items-center justify-between">
+                  {/* Yesterday Comparison */}
+                  <div className="bg-slate-50/80 border border-slate-200/40 p-3.5 rounded-xl flex items-center justify-between">
                     <div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Yesterday Comparison 相比昨日差额</p>
-                      <p className="text-[11px] text-slate-550 font-medium">昨日累计有效手记专注: <strong className="font-mono text-slate-800">{prevDailyTotalMins} 分钟</strong></p>
+                      <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-widest">相比昨日</p>
+                      <p className="text-[11px] text-slate-500 font-medium">昨日专注: <strong className="font-mono text-slate-700">{prevDailyTotalMins} 分钟</strong></p>
                     </div>
                     <div className="flex items-center gap-1 select-none">
                       {dailyFocusDeltaPercent >= 0 ? (
-                        <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2.2 py-1 inline-flex items-center gap-0.5 rounded-full font-bold">
+                        <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2.5 py-1 inline-flex items-center gap-0.5 rounded-full font-bold">
                           <TrendingUp className="w-3 h-3 stroke-3" />
                           +{dailyFocusDeltaPercent}%
                         </span>
                       ) : (
-                        <span className="bg-rose-100 text-rose-700 text-[10px] px-2.2 py-1 inline-flex items-center gap-0.5 rounded-full font-bold">
+                        <span className="bg-rose-100 text-rose-700 text-[10px] px-2.5 py-1 inline-flex items-center gap-0.5 rounded-full font-bold">
                           <TrendingDown className="w-3 h-3 stroke-3" />
                           {dailyFocusDeltaPercent}%
                         </span>
@@ -1660,11 +1668,11 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Metric 3 Card: Horizontal Bar charts for Focus split per Category */}
-                <div className="bg-white border border-slate-150 rounded-[16px] p-6 shadow-xs flex flex-col justify-between">
-                  <div className="pb-3 border-b">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Multi Bar Dimensions</span>
-                    <h3 className="font-extrabold text-xs text-slate-755 mt-1">业务条线对应时长分布明细</h3>
+                {/* Metric 3: Category Bar Chart */}
+                <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                  <div className="pb-3 border-b border-slate-100 border-slate-100">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest block">Category Distribution</span>
+                    <h3 className="font-bold text-xs text-slate-700 mt-1">分类时长分布</h3>
                   </div>
 
                   <div className="h-[210px] w-full mt-2">
@@ -1723,45 +1731,47 @@ export default function App() {
         {activeTab === 'weekly' && (
           <div className="space-y-6" id="weekly_view">
             
-            <header className="bg-white rounded-[16px] border border-slate-150 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]" id="weekly_header">
+            <header className="bg-white rounded-2xl border border-slate-200/60 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_2px_12px_rgba(0,0,0,0.04)]" id="weekly_header">
               <div>
-                <span className="px-3 py-1 bg-rose-50 text-[10px] text-rose-600 font-bold rounded-full w-fit">
-                  Weekly Heuristic Performance Hub
+                <span className="px-3 py-1 text-[10px] font-bold rounded-full w-fit" style={{ color: styleContext.primary, backgroundColor: styleContext.primaryLight }}>
+                  Weekly Performance
                 </span>
-                <h2 className="text-xl font-extrabold text-slate-800 mt-2">周度效率能效复盘看板</h2>
-                <p className="text-xs text-slate-500 font-medium mt-1">计算单周范围内，每日折线递增、达成分布比例占比，以丰富的数据链盘整效率质量。</p>
+                <h2 className="text-xl font-extrabold text-slate-800 mt-2">周度效率复盘看板</h2>
+                <p className="text-xs text-slate-500 font-medium mt-1">计算单周范围内每日折线递增、达成分布占比，盘整效率质量。</p>
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 text-xs rounded-lg">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">周期起始:</span>
-                  <input 
+                <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-2 text-xs rounded-xl">
+                  <span className="text-[10px] text-slate-400 font-semibold">起始:</span>
+                  <input
                     type="date"
                     value={weeklyStartDate}
                     onChange={(e) => setWeeklyStartDate(e.target.value)}
                     className="cursor-pointer font-bold outline-none font-mono"
                   />
                 </div>
-                
+
                 <button
                   onClick={loadWeeklyStats}
-                  className="bg-slate-900 border border-slate-800 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition overflow-hidden"
+                  className="bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all hover:bg-slate-800 active:scale-[0.98]"
                 >
-                  計算本周能效
+                  计算能效
                 </button>
               </div>
             </header>
 
             {!weeklyStatsLoaded ? (
-              <div className="bg-white border border-slate-200 rounded-[16px] p-12 text-center flex flex-col items-center gap-3">
-                <Loader2 className="w-8 h-8 animate-spin animate-infinite" style={{ color: styleContext.primary }} />
-                <p className="text-xs text-slate-405 font-bold">正在周向搜罗并合并高能效率多重数链，请稍等...</p>
+              <div className="bg-white border border-slate-200/60 rounded-2xl p-12 text-center flex flex-col items-center gap-3">
+                <Loader2 className="w-8 h-8 animate-spin" style={{ color: styleContext.primary }} />
+                <p className="text-xs text-slate-400 font-semibold">正在计算本周数据...</p>
               </div>
             ) : weeklyTotalTasks === 0 && weeklyTotalMins === 0 ? (
-              <div className="bg-white border border-stone-150 p-16 rounded-[16.5px] text-center text-slate-400">
-                <CalendarRange className="w-12 h-12 mx-auto stroke-1 text-slate-350" />
-                <p className="text-sm font-extrabold uppercase mt-4">该周期全 7 日没有发现任何派遣或专注履痕</p>
-                <p className="text-xs text-slate-400 mt-0.5">请尝试改变起始日期，如选择本周一对应的具体日期。</p>
+              <div className="bg-white border border-slate-200/60 p-16 rounded-2xl text-center">
+                <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: styleContext.primaryLight }}>
+                  <CalendarRange className="w-8 h-8 stroke-[1.5]" style={{ color: styleContext.primary }} />
+                </div>
+                <p className="text-sm font-bold text-slate-600">本周暂无数据记录</p>
+                <p className="text-xs text-slate-400 mt-1.5">尝试调整起始日期到本周一</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -1770,10 +1780,10 @@ export default function App() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   
                   {/* Card Chart 1: 7 days Done completion dynamic rate Line Chart as demanded strictly */}
-                  <div className="lg:col-span-2 bg-white border border-slate-150 rounded-[16px] p-6 shadow-xs flex flex-col justify-between">
-                    <div className="pb-3 border-b">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Rate Trendline Progression</span>
-                      <h3 className="font-extrabold text-xs text-slate-750 mt-1">7 日行动达标率走势线</h3>
+                  <div className="lg:col-span-2 bg-white border border-slate-200/60 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                    <div className="pb-3 border-b border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Rate Trendline</span>
+                      <h3 className="font-bold text-xs text-slate-700 mt-1">7日达成率走势</h3>
                     </div>
 
                     <div className="h-[220px] w-full mt-4 select-none">
@@ -1812,10 +1822,10 @@ export default function App() {
                   </div>
 
                   {/* Card Chart 2: Category Complete Task Distribution Pie Chart */}
-                  <div className="bg-white border border-slate-150 rounded-[16px] p-6 shadow-xs flex flex-col justify-between">
-                    <div className="pb-3 border-b">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Category share of completed</span>
-                      <h3 className="font-extrabold text-xs text-slate-755 mt-1">已完结指令板块构成占比</h3>
+                  <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                    <div className="pb-3 border-b border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Category Share</span>
+                      <h3 className="font-bold text-xs text-slate-700 mt-1">分类完成占比</h3>
                     </div>
 
                     <div className="h-[180px] flex items-center justify-center">
@@ -1851,10 +1861,10 @@ export default function App() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   
                   {/* Heatmap Continuous complete tracker */}
-                  <div className="bg-white border border-slate-150 rounded-[16px] p-6 shadow-xs flex flex-col justify-between md:col-span-2">
-                    <div className="pb-3 border-b">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Day streak Heatmap grid</span>
-                      <h3 className="font-extrabold text-xs text-slate-755 mt-1">连续能效达合判定网格轨迹</h3>
+                  <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex flex-col justify-between md:col-span-2">
+                    <div className="pb-3 border-b border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Heatmap</span>
+                      <h3 className="font-bold text-xs text-slate-700 mt-1">每日达标轨迹</h3>
                     </div>
 
                     {/* Streak blocks tracker row of 7 days */}
@@ -1880,7 +1890,7 @@ export default function App() {
                             <span className="text-[9px] font-black tracking-widest block opacity-70 uppercase">{dayLabel}</span>
                             <span className="text-[11px] font-mono font-black mt-1 block">{d.day.slice(5)}</span>
                             
-                            <div className={`mt-3 mx-auto w-3.5 h-3.5 rounded-full flex items-center justify-center ${achieved ? 'bg-emerald-400 animate-pulse' : 'bg-slate-350 bg-stone-300'}`}>
+                            <div className={`mt-3 mx-auto w-3.5 h-3.5 rounded-full flex items-center justify-center ${achieved ? 'bg-emerald-400 animate-pulse' : 'bg-slate-300 bg-stone-300'}`}>
                             </div>
                             
                             <span className="text-[9px] font-bold block mt-1.5 opacity-80">{mins}m</span>
@@ -1889,41 +1899,41 @@ export default function App() {
                       })}
                     </div>
 
-                    <div className="bg-[var(--color-light)] p-3 rounded-xl border border-[var(--color-secondary)]/50 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-650">🏆 本周达标连续高效专注天数最高值</span>
-                      <span className="text-sm font-extrabold tracking-tight px-3 py-1 rounded bg-white" style={{ color: styleContext.primary }}>
-                        连续 {maxStreak} 日高效投产达标
+                    <div className="p-3 rounded-xl border flex items-center justify-between" style={{ backgroundColor: styleContext.primaryLight, borderColor: styleContext.secondary + '50' }}>
+                      <span className="text-xs font-semibold text-slate-600">🏆 最长连续达标</span>
+                      <span className="text-sm font-bold tracking-tight px-3 py-1 rounded-lg bg-white shadow-sm" style={{ color: styleContext.primary }}>
+                        {maxStreak} 日
                       </span>
                     </div>
                   </div>
 
                   {/* Quantitative counter stats list card */}
-                  <div className="bg-white border border-slate-150 rounded-[16px] p-6 shadow-xs flex flex-col justify-between">
-                    <div className="pb-3 border-b">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Multi count total summaries</span>
-                      <h3 className="font-extrabold text-xs text-slate-755 mt-1">本周能量能效核心大指标</h3>
+                  <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                    <div className="pb-3 border-b border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Metrics: Summary</span>
+                      <h3 className="font-bold text-xs text-slate-700 mt-1">本周核心指标</h3>
                     </div>
 
                     <div className="divide-y divide-slate-100 flex-grow py-3">
-                      
-                      <div className="py-2.5 flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-500">本周已指派派遣总数</span>
-                        <strong className="font-bold font-mono text-slate-800">{weeklyTotalTasks} 项行动</strong>
+
+                      <div className="py-3 flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-500">派遣总数</span>
+                        <strong className="font-bold font-mono text-slate-700">{weeklyTotalTasks} 项</strong>
                       </div>
 
-                      <div className="py-2.5 flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-500">本周顺利完结达成总数</span>
-                        <strong className="font-extrabold font-mono text-emerald-600">{weeklyDoneTasks} 项行动</strong>
+                      <div className="py-3 flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-500">完成总数</span>
+                        <strong className="font-bold font-mono text-emerald-600">{weeklyDoneTasks} 项</strong>
                       </div>
 
-                      <div className="py-2.5 flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-500">搁置/流失排期状态数</span>
-                        <strong className="font-bold font-mono text-rose-500">{weeklyOverdueTasks} 项已被搁置</strong>
+                      <div className="py-3 flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-500">搁置数</span>
+                        <strong className="font-bold font-mono text-rose-500">{weeklyOverdueTasks} 项</strong>
                       </div>
 
-                      <div className="py-2.5 flex items-center justify-between text-xs font-medium">
-                        <span className="font-bold text-indigo-600">本周心流精细计时总量</span>
-                        <strong className="text-sm font-extrabold font-sans text-indigo-700">{weeklyTotalMins} 分钟</strong>
+                      <div className="py-3 flex items-center justify-between text-xs">
+                        <span className="font-semibold text-indigo-600">专注总量</span>
+                        <strong className="font-bold font-mono text-indigo-600">{weeklyTotalMins} 分钟</strong>
                       </div>
 
                     </div>
@@ -1937,85 +1947,83 @@ export default function App() {
           </div>
         )}
 
-        {/* --- View: Immersive Fullscreen Center Focus mode (专注计时页) --- */}
+        {/* --- View: Immersive Focus Timer (专注计时页) --- */}
         {activeTab === 'focus' && runningSession && (
-          <div className="min-h-[500px] max-w-lg mx-auto flex flex-col items-center justify-center space-y-8 animate-in fade-in py-10" id="focus_stopwatch_view">
-            
-            <div className="text-center space-y-2">
-              {/* Tooltip text specified exactly */}
-              <span className="px-4 py-1.5 bg-rose-50 border-2 border-rose-100 text-rose-600 text-[11px] font-black rounded-full uppercase tracking-widest inline-block animate-pulse">
+          <div className="min-h-[550px] max-w-lg mx-auto flex flex-col items-center justify-center space-y-10 py-10 fade-in-up" id="focus_stopwatch_view">
+
+            <div className="text-center space-y-3">
+              <span className="px-4 py-1.5 text-[11px] font-bold rounded-full uppercase tracking-widest inline-block animate-pulse" style={{ color: styleContext.primary, backgroundColor: styleContext.primaryLight, border: `2px solid ${styleContext.secondary}` }}>
                 🔥 专注中
               </span>
-              
-              {/* Task name text specified exactly */}
-              <h2 className="text-xl font-extrabold text-slate-800 tracking-tight mt-3">
-                目前正在极度专注执行目标：
+
+              <h2 className="text-lg font-bold text-slate-700 tracking-tight mt-3">
+                正在专注
               </h2>
-              <p className="text-base font-extrabold text-rose-600 bg-rose-50/50 border border-rose-200 px-6 py-3.5 rounded-xl max-w-md mx-auto truncate mt-2 shadow-xs">
+              <p className="text-sm font-bold px-6 py-3 rounded-2xl max-w-md mx-auto truncate mt-2 border" style={{ color: styleContext.primary, backgroundColor: styleContext.primaryLight, borderColor: styleContext.secondary + '60' }}>
                 🎯 {runningSession.taskTitle || '正在高速运行心流'}
               </p>
             </div>
 
-            {/* Premium circular dynamic ring stopwatch of 200px diameter exactly represented */}
-            <div className="relative w-[200px] h-[200px] flex items-center justify-center shadow-lg rounded-full bg-white border border-slate-100">
-              
-              {/* Ambient pulsing visual ring */}
-              <div className="absolute inset-0 rounded-full border-4 border-dashed border-rose-200 breathing-ring pointer-events-none duration-100"></div>
-              
-              {/* Main SVG circles path drawing track and progress */}
+            {/* Circular progress ring — 240px */}
+            <div className="relative w-[240px] h-[240px] flex items-center justify-center rounded-full" style={{ boxShadow: `0 0 60px ${styleContext.primary}15, 0 4px 20px rgba(0,0,0,0.04)` }}>
+
+              {/* Outer glow ring */}
+              <div className="absolute inset-[-8px] rounded-full border-2 border-dashed breathing-ring pointer-events-none" style={{ borderColor: styleContext.secondary + '40' }}></div>
+
+              {/* Inner white background circle */}
+              <div className="absolute inset-0 rounded-full bg-white border border-slate-100 shadow-inner"></div>
+
+              {/* SVG progress ring */}
               <svg className="absolute inset-0 w-full h-full -rotate-90">
-                {/* Backing light round track 12px thickness */}
                 <circle
-                  cx="100"
-                  cy="100"
-                  r="86"
+                  cx="120"
+                  cy="120"
+                  r="104"
                   stroke={styleContext.primaryLight}
-                  strokeWidth="12"
+                  strokeWidth="10"
                   fill="transparent"
                 />
-                
-                {/* Dynamically active progress path in theme gradient colored */}
                 <circle
-                  cx="100"
-                  cy="100"
-                  r="86"
+                  cx="120"
+                  cy="120"
+                  r="104"
                   stroke={styleContext.primary}
-                  strokeWidth="12"
+                  strokeWidth="10"
                   fill="transparent"
-                  strokeDasharray={540}
-                  strokeDashoffset={540 - (540 * Math.min(1.0, (focusTimeElapsed % 3600) / 3600))}
+                  strokeDasharray={653}
+                  strokeDashoffset={653 - (653 * Math.min(1.0, (focusTimeElapsed % 3600) / 3600))}
                   strokeLinecap="round"
                   className="transition-all duration-1000"
+                  style={{ filter: `drop-shadow(0 0 6px ${styleContext.primary}40)` }}
                 />
               </svg>
 
-              {/* Monospace count digits inner alignment */}
-              <div className="text-center space-y-0.5 z-10 select-all">
-                <h1 className="text-3xl font-bold font-mono text-slate-800 tracking-tight">
+              {/* Timer digits */}
+              <div className="text-center space-y-1 z-10 select-all">
+                <h1 className="text-4xl font-bold font-mono text-slate-800 tracking-tight tabular-nums">
                   {String(Math.floor(focusTimeElapsed / 3600)).padStart(2, '0')}:
                   {String(Math.floor((focusTimeElapsed % 3600) / 60)).padStart(2, '0')}:
                   {String(focusTimeElapsed % 60).padStart(2, '0')}
                 </h1>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest block">
                   已专注
                 </p>
               </div>
 
             </div>
 
-            {/* Immersive white stopwatch control triggers */}
+            {/* Stop button */}
             <div className="w-full flex flex-col items-center gap-4">
               <button
                 onClick={handleStopSession}
-                className="w-full bg-white hover:bg-slate-50 text-slate-850 font-extrabold text-xs py-3.5 rounded-xl transition border-2 flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                className="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs py-4 rounded-2xl transition-all border-2 flex items-center justify-center gap-2.5 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.99]"
                 style={{ borderColor: styleContext.primary }}
               >
-                <Square className="w-3.5 h-3.5 text-rose-500 fill-current" />
-                <span>停止并记录该段专注时长</span>
+                <Square className="w-3.5 h-3.5 fill-current" style={{ color: styleContext.primary }} />
+                <span>停止并记录专注时长</span>
               </button>
 
-              {/* Custom micro caption layout as specified exactly */}
-              <p className="text-[12.5px] text-zinc-450 font-bold text-slate-400 font-sans tracking-wide">
+              <p className="text-xs text-slate-400 font-semibold tracking-wide">
                 深呼吸，保持节奏
               </p>
             </div>
