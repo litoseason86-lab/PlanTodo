@@ -15,9 +15,8 @@ import {focusApi} from '../modules/focus/api/focusApi';
 import {FocusPanel} from '../modules/focus/components/FocusPanel';
 import {formatFocusElapsed, calculateFocusRingOffset} from '../modules/focus/controllers/useFocusController';
 import {DailyReportPanel} from '../modules/reports/components/DailyReportPanel';
-import {buildDailyReportMetrics} from '../modules/reports/controllers/useDailyReportController';
+import {useReportStatsController} from '../modules/reports/controllers/useReportStatsController';
 import {WeeklyReviewPanel} from '../modules/reports/components/WeeklyReviewPanel';
-import {buildWeeklyReviewMetrics} from '../modules/reports/controllers/useWeeklyReviewController';
 import {type AppTab} from './navigation';
 import {THEME_STYLES, type ThemeId} from './theme';
 import {tasksApi} from '../modules/tasks/api/tasksApi';
@@ -75,26 +74,10 @@ export default function AppShell() {
   const [taskFilterCategory, setTaskFilterCategory] = useState('all');
   const [taskFilterStatus, setTaskFilterStatus] = useState('all');
   const [taskFilterDateScope, setTaskFilterDateScope] = useState<'today' | 'seven-days' | 'all'>('today');
-  const [dailyReportDate, setDailyReportDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [dailyTasks, setDailyTasks] = useState<Task[]>([]);
-  const [dailySessions, setDailySessions] = useState<TaskExecutionSession[]>([]);
-  const [prevDailySessions, setPrevDailySessions] = useState<TaskExecutionSession[]>([]);
-  const [dailyStatsLoaded, setDailyStatsLoaded] = useState(false);
-  const [weeklyStartDate, setWeeklyStartDate] = useState(() => {
-    const d = new Date();
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff)).toISOString().slice(0, 10);
-  });
-  const [weeklyDaysData, setWeeklyDaysData] = useState<Array<{
-    day: string;
-    tasks: Task[];
-    sessions: TaskExecutionSession[];
-  }>>([]);
-  const [weeklyStatsLoaded, setWeeklyStatsLoaded] = useState(false);
   const [lastFinishedSessionTask, setLastFinishedSessionTask] = useState<Task | null>(null);
 
   const styleContext = THEME_STYLES[activeTheme];
+  const reportStats = useReportStatsController({categories, allTasks});
   const categoryActions = useCategoryActions({
     categories,
     refreshCategories,
@@ -146,15 +129,15 @@ export default function AppShell() {
 
   useEffect(() => {
     if (activeTab === 'daily') {
-      void loadDailyStats();
+      void reportStats.loadDailyStats();
     }
-  }, [dailyReportDate, activeTab]);
+  }, [reportStats.dailyReportDate, activeTab, reportStats.loadDailyStats]);
 
   useEffect(() => {
     if (activeTab === 'weekly') {
-      void loadWeeklyStats();
+      void reportStats.loadWeeklyStats();
     }
-  }, [weeklyStartDate, activeTab]);
+  }, [reportStats.weeklyStartDate, activeTab, reportStats.loadWeeklyStats]);
 
   async function checkRunningSession() {
     try {
@@ -207,8 +190,8 @@ export default function AppShell() {
       showToast('进展转换完美同步');
       await loadTasksForSelectedDate();
       await refreshAllTasks();
-      if (activeTab === 'daily') void loadDailyStats();
-      if (activeTab === 'weekly') void loadWeeklyStats();
+      if (activeTab === 'daily') void reportStats.loadDailyStats();
+      if (activeTab === 'weekly') void reportStats.loadWeeklyStats();
     } catch (err) {
       showToast(getErrorMessage(err, '更新状态故障'), 'error');
     }
@@ -229,8 +212,8 @@ export default function AppShell() {
       showToast('任务已删除');
       await loadTasksForSelectedDate();
       await refreshAllTasks();
-      if (activeTab === 'daily') void loadDailyStats();
-      if (activeTab === 'weekly') void loadWeeklyStats();
+      if (activeTab === 'daily') void reportStats.loadDailyStats();
+      if (activeTab === 'weekly') void reportStats.loadWeeklyStats();
     } catch (err) {
       showToast(getErrorMessage(err, '删除任务失败'), 'error');
     } finally {
@@ -308,64 +291,9 @@ export default function AppShell() {
     }
   }
 
-  async function loadDailyStats() {
-    setDailyStatsLoaded(false);
-    try {
-      const tList = await tasksApi.getTasks({date: dailyReportDate});
-      setDailyTasks(tList);
-      const sList = await focusApi.getSessions({date: dailyReportDate});
-      setDailySessions(sList);
-      const yesterday = new Date(dailyReportDate);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().slice(0, 10);
-      setPrevDailySessions(await focusApi.getSessions({date: yesterdayStr}));
-      setDailyStatsLoaded(true);
-    } catch (err) {
-      console.error('Daily stats loading failure', err);
-    }
-  }
-
-  async function loadWeeklyStats() {
-    setWeeklyStatsLoaded(false);
-    try {
-      const days = Array.from({length: 7}, (_, i) => {
-        const d = new Date(weeklyStartDate);
-        d.setDate(d.getDate() + i);
-        return d.toISOString().slice(0, 10);
-      });
-
-      const dayLoads = await Promise.all(days.map(async (day) => {
-        const tList = await tasksApi.getTasks({date: day});
-        const sList = await focusApi.getSessions({date: day});
-        return {day, tasks: tList, sessions: sList};
-      }));
-
-      setWeeklyDaysData(dayLoads);
-      setWeeklyStatsLoaded(true);
-    } catch (err) {
-      console.error('Weekly stats loading error', err);
-    }
-  }
-
   const todayCategoryFocusData = useMemo(
     () => buildTodayCategoryFocusData({categories, tasks, allTasks, selectedDateSessions}),
     [categories, tasks, allTasks, selectedDateSessions],
-  );
-
-  const dailyMetrics = useMemo(
-    () => buildDailyReportMetrics({
-      categories,
-      dailyTasks,
-      allTasks,
-      dailySessions,
-      prevDailySessions,
-    }),
-    [categories, dailyTasks, allTasks, dailySessions, prevDailySessions],
-  );
-
-  const weeklyMetrics = useMemo(
-    () => buildWeeklyReviewMetrics({categories, weeklyDaysData}),
-    [categories, weeklyDaysData],
   );
 
   const filteredTaskItems = useMemo(
@@ -504,23 +432,23 @@ export default function AppShell() {
         {activeTab === 'daily' && (
           <DailyReportPanel
             styleContext={{primary: styleContext.primary, primaryLight: styleContext.primaryLight}}
-            dailyReportDate={dailyReportDate}
-            setDailyReportDate={setDailyReportDate}
-            loadDailyStats={loadDailyStats}
-            dailyStatsLoaded={dailyStatsLoaded}
-            dailyTasks={dailyTasks}
-            dailySessions={dailySessions}
-            metrics={dailyMetrics}
+            dailyReportDate={reportStats.dailyReportDate}
+            setDailyReportDate={reportStats.setDailyReportDate}
+            loadDailyStats={reportStats.loadDailyStats}
+            dailyStatsLoaded={reportStats.dailyStatsLoaded}
+            dailyTasks={reportStats.dailyTasks}
+            dailySessions={reportStats.dailySessions}
+            metrics={reportStats.dailyMetrics}
           />
         )}
         {activeTab === 'weekly' && (
           <WeeklyReviewPanel
             styleContext={{primary: styleContext.primary, primaryLight: styleContext.primaryLight, secondary: styleContext.secondary}}
-            weeklyStartDate={weeklyStartDate}
-            setWeeklyStartDate={setWeeklyStartDate}
-            loadWeeklyStats={loadWeeklyStats}
-            weeklyStatsLoaded={weeklyStatsLoaded}
-            metrics={weeklyMetrics}
+            weeklyStartDate={reportStats.weeklyStartDate}
+            setWeeklyStartDate={reportStats.setWeeklyStartDate}
+            loadWeeklyStats={reportStats.loadWeeklyStats}
+            weeklyStatsLoaded={reportStats.weeklyStatsLoaded}
+            metrics={reportStats.weeklyMetrics}
           />
         )}
         {activeTab === 'focus' && runningSession && (
