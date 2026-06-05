@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import {createServer} from './server/app/createServer';
 
 async function bootstrap() {
