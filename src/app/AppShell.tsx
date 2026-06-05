@@ -1,9 +1,7 @@
 import {useEffect, useMemo, useRef, useState, type FormEvent} from 'react';
 import {
-  AlertCircle,
   Calendar,
   CalendarRange,
-  Check,
   ClipboardList,
   LayoutDashboard,
   ListTodo,
@@ -11,7 +9,6 @@ import {
   Square,
   Tags,
   Timer,
-  X,
 } from 'lucide-react';
 
 import type {Category, Task, TaskExecutionSession} from '../../shared/domain/entities';
@@ -34,6 +31,9 @@ import {tasksApi} from '../modules/tasks/api/tasksApi';
 import {filterTasks} from '../modules/tasks/controllers/useTasksController';
 import {TasksPanel} from '../modules/tasks/components/TasksPanel';
 import {calculateEffectiveFocusSeconds} from '../modules/focus/controllers/useFocusController';
+import {AppToast} from './components/AppToast';
+import {getErrorMessage} from './errors';
+import {useToast} from './hooks/useToast';
 
 const PRESET_COLORS = [
   {hex: '#fb7185', label: '樱花粉'},
@@ -52,10 +52,6 @@ const STORAGE_STYLES = {
   secondary: THEME_STYLES.peach.secondary,
 };
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
-
 export default function AppShell() {
   const [activeTab, setActiveTab] = useState<AppTab>('today');
   const [activeTheme, setActiveTheme] = useState<ThemeId>('peach');
@@ -65,8 +61,7 @@ export default function AppShell() {
   const [selectedDateSessions, setSelectedDateSessions] = useState<TaskExecutionSession[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const {successMsg, errorMsg, showToast, clearSuccess, clearError} = useToast();
   const [focusTimeElapsed, setFocusTimeElapsed] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -187,16 +182,6 @@ export default function AppShell() {
       }
     } catch (err) {
       console.error('Check session state error', err);
-    }
-  }
-
-  function showToast(msg: string, type: 'success' | 'error' = 'success') {
-    if (type === 'success') {
-      setSuccessMsg(msg);
-      setTimeout(() => setSuccessMsg(null), 3500);
-    } else {
-      setErrorMsg(msg);
-      setTimeout(() => setErrorMsg(null), 4500);
     }
   }
 
@@ -498,24 +483,12 @@ export default function AppShell() {
         }
       `}</style>
 
-      {successMsg && (
-        <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-4" id="success_toast">
-          <div className="bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl shadow-emerald-200/40 flex items-center gap-3 min-w-[240px] overflow-hidden relative">
-            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center shrink-0"><Check className="w-3.5 h-3.5 text-white" /></div>
-            <span className="text-xs font-semibold">{successMsg}</span>
-            <button onClick={() => setSuccessMsg(null)} className="ml-auto text-white/60 hover:text-white transition shrink-0"><X className="w-3.5 h-3.5" /></button>
-          </div>
-        </div>
-      )}
-      {errorMsg && (
-        <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-4" id="error_toast">
-          <div className="bg-white border border-rose-200 text-rose-700 px-5 py-3 rounded-2xl shadow-xl shadow-rose-100/40 flex items-center gap-3 min-w-[240px] overflow-hidden relative">
-            <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center shrink-0"><AlertCircle className="w-3.5 h-3.5 text-rose-500" /></div>
-            <span className="text-xs font-semibold">{errorMsg}</span>
-            <button onClick={() => setErrorMsg(null)} className="ml-auto text-slate-300 hover:text-slate-500 transition shrink-0"><X className="w-3.5 h-3.5" /></button>
-          </div>
-        </div>
-      )}
+      <AppToast
+        successMsg={successMsg}
+        errorMsg={errorMsg}
+        clearSuccess={clearSuccess}
+        clearError={clearError}
+      />
 
       {runningSession && activeTab !== 'focus' && (
         <div onClick={() => setActiveTab('focus')} className="fixed bottom-6 right-6 bg-slate-900/95 backdrop-blur-xl text-white px-5 py-3.5 rounded-2xl shadow-2xl shadow-slate-900/20 flex items-center gap-3.5 cursor-pointer z-40 hover:scale-[1.03] hover:shadow-2xl transition-all duration-300 ring-1 ring-white/10" id="global_running_bar">
@@ -549,7 +522,7 @@ export default function AppShell() {
               return (
                 <button
                   key={tab.key}
-                  onClick={() => {setActiveTab(tab.key); setErrorMsg(null);}}
+                  onClick={() => {setActiveTab(tab.key); clearError();}}
                   className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 ${
                     activeTab === tab.key ? 'text-white shadow-md scale-[1.02]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/80'
                   }`}
@@ -562,7 +535,7 @@ export default function AppShell() {
             })}
             {runningSession && (
               <button
-                onClick={() => {setActiveTab('focus'); setErrorMsg(null);}}
+                onClick={() => {setActiveTab('focus'); clearError();}}
                 className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 ${
                   activeTab === 'focus' ? 'bg-rose-500 text-white shadow-md shadow-rose-200/50' : 'bg-rose-50/80 text-rose-500 hover:bg-rose-100/80'
                 }`}
