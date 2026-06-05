@@ -1,12 +1,12 @@
-# SQLite Dual Storage Implementation Plan
+# SQLite 双存储 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a `better-sqlite3` storage driver while keeping the current JSON storage driver available through environment-based runtime selection.
+**Goal:** 新增 `better-sqlite3` 存储实现，并通过环境变量在 JSON 与 SQLite repository 之间切换。
 
-**Architecture:** Keep existing routes and services unchanged. Add SQLite repositories that implement the existing repository contracts, then move storage selection into a repository factory consumed by `server/app/registerRoutes.ts`. SQLite schema creation is handled by hand-written migrations that run when the SQLite client opens.
+**Architecture:** 保留现有 repository contracts 和 JSON repositories。新增 `server/storage/sqlite` 实现同一批 contracts，并用 `server/storage/createRepositories.ts` 统一装配。`routes` 和 `services` 不接触 SQLite client，也不改变现有 API 行为。
 
-**Tech Stack:** TypeScript, Express, `better-sqlite3`, Vitest, JSON storage, SQLite file storage.
+**Tech Stack:** TypeScript, Express, better-sqlite3, Vitest, JSON storage fallback, hand-written SQLite migrations
 
 ---
 
@@ -14,89 +14,40 @@
 
 ### Create
 
-- `server/storage/createRepositories.ts`: chooses JSON or SQLite repositories from environment variables.
-- `server/storage/createRepositories.test.ts`: verifies driver selection and invalid driver behavior.
-- `server/storage/sqlite/sqliteClient.ts`: opens SQLite files, enables foreign keys, runs migrations.
-- `server/storage/sqlite/sqliteClient.test.ts`: verifies schema creation and demo user seed.
-- `server/storage/sqlite/migrations.ts`: stores and runs ordered SQL migrations.
-- `server/storage/sqlite/repositories/categorySqliteRepository.ts`: SQLite implementation of `CategoryRepository`.
-- `server/storage/sqlite/repositories/categorySqliteRepository.test.ts`: category behavior parity tests.
-- `server/storage/sqlite/repositories/taskSqliteRepository.ts`: SQLite implementation of `TaskRepository`.
-- `server/storage/sqlite/repositories/taskSqliteRepository.test.ts`: task behavior parity tests.
-- `server/storage/sqlite/repositories/focusSessionSqliteRepository.ts`: SQLite implementation of `FocusSessionRepository`.
-- `server/storage/sqlite/repositories/focusSessionSqliteRepository.test.ts`: focus session behavior parity tests.
-- `server/storage/sqlite/repositories/reportSqliteRepository.ts`: SQLite implementation of `ReportRepository`.
-- `server/storage/sqlite/repositories/reportSqliteRepository.test.ts`: report upsert/get behavior tests.
-- `server/storage/sqlite/repositories/rowMappers.ts`: maps SQLite snake_case rows to domain entities.
-- `server/storage/sqlite/testUtils.ts`: creates temporary SQLite clients for repository tests.
+- `server/storage/createRepositories.ts`：按环境变量创建 JSON 或 SQLite repositories。
+- `server/storage/createRepositories.test.ts`：验证 driver 默认值、JSON 装配、SQLite 装配和非法 driver。
+- `server/storage/sqlite/sqliteClient.ts`：创建 SQLite 目录、打开连接、开启外键、执行 migrations。
+- `server/storage/sqlite/sqliteClient.test.ts`：验证 migration 建表、默认 demo user、migration 幂等。
+- `server/storage/sqlite/migrations.ts`：手写 schema migrations。
+- `server/storage/sqlite/repositories/categorySqliteRepository.ts`：实现 `CategoryRepository`。
+- `server/storage/sqlite/repositories/categorySqliteRepository.test.ts`：覆盖分类列表、查询、名称存在、创建、更新、删除。
+- `server/storage/sqlite/repositories/taskSqliteRepository.ts`：实现 `TaskRepository`。
+- `server/storage/sqlite/repositories/taskSqliteRepository.test.ts`：覆盖任务创建、筛选、状态更新、按 ID 查询。
+- `server/storage/sqlite/repositories/focusSessionSqliteRepository.ts`：实现 `FocusSessionRepository`。
+- `server/storage/sqlite/repositories/focusSessionSqliteRepository.test.ts`：覆盖运行中 session、按任务、按日期范围、停止 session。
+- `server/storage/sqlite/repositories/reportSqliteRepository.ts`：实现 `ReportRepository`。
+- `server/storage/sqlite/repositories/reportSqliteRepository.test.ts`：覆盖日报、周报的新增、更新、读取。
+- `server/storage/sqlite/repositories/rowMappers.ts`：集中 snake_case row 到 domain entity 的转换。
+- `server/storage/sqlite/testSqlite.ts`：测试用临时 SQLite 文件工具。
 
 ### Modify
 
-- `package.json`: add `better-sqlite3`, `@types/better-sqlite3`, and optional `db:sqlite` helper script.
-- `package-lock.json`: dependency lockfile update.
-- `.env.example`: document storage environment variables.
-- `README.md`: document JSON/SQLite storage modes.
-- `server/app/registerRoutes.ts`: use `createRepositoriesFromEnv()` instead of directly creating JSON repositories.
+- `package.json`：增加 `better-sqlite3`、`@types/better-sqlite3`。
+- `package-lock.json`：随 `npm install` 更新。
+- `.env.example`：增加 `STORAGE_DRIVER`、`JSON_DB_PATH`、`SQLITE_DB_PATH`。
+- `README.md`：补充双存储配置说明。
+- `server/app/registerRoutes.ts`：改为通过 `createRepositoriesFromEnv()` 获取 repositories。
 
 ---
 
-## Task 1: Add SQLite Dependency And Storage Factory Skeleton
+## Task 1: 依赖和测试工具
 
 **Files:**
 - Modify: `package.json`
 - Modify: `package-lock.json`
-- Create: `server/storage/createRepositories.ts`
-- Test: `server/storage/createRepositories.test.ts`
+- Create: `server/storage/sqlite/testSqlite.ts`
 
-- [ ] **Step 1: Write the failing factory tests**
-
-Create `server/storage/createRepositories.test.ts`:
-
-```ts
-import {afterEach, describe, expect, it, vi} from 'vitest';
-
-import {createRepositoriesFromEnv} from './createRepositories';
-
-const originalEnv = {...process.env};
-
-afterEach(() => {
-  process.env = {...originalEnv};
-  vi.restoreAllMocks();
-});
-
-describe('createRepositoriesFromEnv', () => {
-  it('defaults to JSON repositories when STORAGE_DRIVER is not set', () => {
-    delete process.env.STORAGE_DRIVER;
-    process.env.JSON_DB_PATH = 'data/test-db.json';
-
-    const repositories = createRepositoriesFromEnv();
-
-    expect(repositories.driver).toBe('json');
-    expect(repositories.categories.constructor.name).toBe('CategoryJsonRepository');
-    expect(repositories.tasks.constructor.name).toBe('TaskJsonRepository');
-    expect(repositories.focusSessions.constructor.name).toBe('FocusSessionJsonRepository');
-    expect(repositories.reports.constructor.name).toBe('ReportJsonRepository');
-  });
-
-  it('rejects unknown storage drivers', () => {
-    process.env.STORAGE_DRIVER = 'postgres';
-
-    expect(() => createRepositoriesFromEnv()).toThrow('Unsupported STORAGE_DRIVER "postgres". Use "json" or "sqlite".');
-  });
-});
-```
-
-- [ ] **Step 2: Run the test and verify it fails**
-
-Run:
-
-```bash
-npm test -- server/storage/createRepositories.test.ts
-```
-
-Expected: FAIL with `Cannot find module './createRepositories'`.
-
-- [ ] **Step 3: Install SQLite dependencies**
+- [ ] **Step 1: 安装 SQLite 依赖**
 
 Run:
 
@@ -105,155 +56,140 @@ npm install better-sqlite3
 npm install -D @types/better-sqlite3
 ```
 
-Expected: `package.json` and `package-lock.json` include the new dependencies.
+Expected: `package.json` 出现：
 
-- [ ] **Step 4: Implement the JSON-only factory skeleton**
-
-Create `server/storage/createRepositories.ts`:
-
-```ts
-import path from 'node:path';
-
-import type {CategoryRepository} from '../modules/categories/repository';
-import type {FocusSessionRepository} from '../modules/focus/repository';
-import type {ReportRepository} from '../modules/reports/repository';
-import type {TaskRepository} from '../modules/tasks/repository';
-import {CategoryJsonRepository} from './json/repositories/categoryJsonRepository';
-import {FocusSessionJsonRepository} from './json/repositories/focusSessionJsonRepository';
-import {ReportJsonRepository} from './json/repositories/reportJsonRepository';
-import {TaskJsonRepository} from './json/repositories/taskJsonRepository';
-import {JsonFileStore} from './json/fileStore';
-
-export type StorageDriver = 'json' | 'sqlite';
-
-export interface AppRepositories {
-  driver: StorageDriver;
-  categories: CategoryRepository;
-  tasks: TaskRepository;
-  focusSessions: FocusSessionRepository;
-  reports: ReportRepository;
-}
-
-function resolveStorageDriver(value: string | undefined): StorageDriver {
-  if (!value || value === 'json') {
-    return 'json';
+```json
+{
+  "dependencies": {
+    "better-sqlite3": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0"
   }
-  if (value === 'sqlite') {
-    return 'sqlite';
-  }
-  throw new Error(`Unsupported STORAGE_DRIVER "${value}". Use "json" or "sqlite".`);
-}
-
-function createJsonRepositories(filePath: string): AppRepositories {
-  const store = new JsonFileStore(filePath);
-
-  return {
-    driver: 'json',
-    categories: new CategoryJsonRepository(store),
-    tasks: new TaskJsonRepository(store),
-    focusSessions: new FocusSessionJsonRepository(store),
-    reports: new ReportJsonRepository(store),
-  };
-}
-
-export function createRepositoriesFromEnv(env: NodeJS.ProcessEnv = process.env): AppRepositories {
-  const driver = resolveStorageDriver(env.STORAGE_DRIVER);
-  if (driver === 'json') {
-    return createJsonRepositories(path.resolve(env.JSON_DB_PATH ?? 'data/db.json'));
-  }
-
-  throw new Error('SQLite storage is not implemented yet.');
 }
 ```
 
-- [ ] **Step 5: Run the factory test**
+实际版本以 npm 解析结果为准，不手写锁定版本。
 
-Run:
+- [ ] **Step 2: 创建测试 SQLite 文件工具**
 
-```bash
-npm test -- server/storage/createRepositories.test.ts
-```
-
-Expected: PASS for the JSON default and invalid driver tests.
-
-- [ ] **Step 6: Commit Task 1**
-
-```bash
-git add package.json package-lock.json server/storage/createRepositories.ts server/storage/createRepositories.test.ts
-git commit -m "feat: add storage repository factory"
-```
-
----
-
-## Task 2: Add SQLite Client And Migrations
-
-**Files:**
-- Create: `server/storage/sqlite/migrations.ts`
-- Create: `server/storage/sqlite/sqliteClient.ts`
-- Test: `server/storage/sqlite/sqliteClient.test.ts`
-
-- [ ] **Step 1: Write the failing SQLite client test**
-
-Create `server/storage/sqlite/sqliteClient.test.ts`:
+Create `server/storage/sqlite/testSqlite.ts`:
 
 ```ts
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+export interface TestSqliteFile {
+  filePath: string;
+  cleanup: () => void;
+}
+
+export function createTestSqliteFile(prefix: string): TestSqliteFile {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), `${prefix}-`));
+  const filePath = path.join(directory, 'test.sqlite');
+
+  return {
+    filePath,
+    cleanup() {
+      fs.rmSync(directory, {recursive: true, force: true});
+    },
+  };
+}
+```
+
+- [ ] **Step 3: 运行类型检查**
+
+Run:
+
+```bash
+npm run lint
+```
+
+Expected: PASS。
+
+- [ ] **Step 4: 提交依赖和测试工具**
+
+Run:
+
+```bash
+git add package.json package-lock.json server/storage/sqlite/testSqlite.ts
+git commit -m "chore: add sqlite dependency"
+```
+
+---
+
+## Task 2: SQLite migration 和 client
+
+**Files:**
+- Create: `server/storage/sqlite/migrations.ts`
+- Create: `server/storage/sqlite/sqliteClient.ts`
+- Test: `server/storage/sqlite/sqliteClient.test.ts`
+
+- [ ] **Step 1: 写 migration 失败测试**
+
+Create `server/storage/sqlite/sqliteClient.test.ts`:
+
+```ts
 import {afterEach, describe, expect, it} from 'vitest';
 
 import {openSqliteClient} from './sqliteClient';
+import {createTestSqliteFile, type TestSqliteFile} from './testSqlite';
 
-const createdFiles: string[] = [];
-
-function tempDbPath(): string {
-  const filePath = path.join(os.tmpdir(), `plantode-sqlite-${Date.now()}-${Math.random().toString(16).slice(2)}.sqlite`);
-  createdFiles.push(filePath);
-  return filePath;
-}
+let sqliteFile: TestSqliteFile | undefined;
 
 afterEach(() => {
-  for (const filePath of createdFiles.splice(0)) {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  }
+  sqliteFile?.cleanup();
+  sqliteFile = undefined;
 });
 
 describe('openSqliteClient', () => {
-  it('creates schema and seeds the fixed demo user', () => {
-    const client = openSqliteClient(tempDbPath());
+  it('creates schema tables and seeds demo user', () => {
+    sqliteFile = createTestSqliteFile('plantode-sqlite-client');
+    const db = openSqliteClient(sqliteFile.filePath);
 
-    const tables = client
+    const tables = db
       .prepare("select name from sqlite_master where type = 'table' order by name")
       .all() as Array<{name: string}>;
-    const tableNames = tables.map((table) => table.name);
 
-    expect(tableNames).toContain('schema_migrations');
-    expect(tableNames).toContain('users');
-    expect(tableNames).toContain('categories');
-    expect(tableNames).toContain('tasks');
-    expect(tableNames).toContain('task_execution_sessions');
-    expect(tableNames).toContain('daily_reports');
-    expect(tableNames).toContain('weekly_reviews');
+    expect(tables.map((table) => table.name)).toEqual([
+      'categories',
+      'daily_reports',
+      'schema_migrations',
+      'task_execution_sessions',
+      'tasks',
+      'users',
+      'weekly_reviews',
+    ]);
 
-    const user = client.prepare('select id, username, display_name from users where id = 1').get();
-    expect(user).toEqual({
+    expect(db.prepare('select id, username, display_name from users where id = 1').get()).toEqual({
       id: 1,
       username: 'demo',
       display_name: 'Demo User',
     });
 
-    const migrationCount = client.prepare('select count(*) as count from schema_migrations').get() as {count: number};
-    expect(migrationCount.count).toBeGreaterThan(0);
+    expect(db.pragma('foreign_keys', {simple: true})).toBe(1);
 
-    client.close();
+    db.close();
+  });
+
+  it('runs migrations idempotently', () => {
+    sqliteFile = createTestSqliteFile('plantode-sqlite-idempotent');
+
+    const first = openSqliteClient(sqliteFile.filePath);
+    first.close();
+
+    const second = openSqliteClient(sqliteFile.filePath);
+    const migrations = second.prepare('select version from schema_migrations order by version').all();
+
+    expect(migrations).toEqual([{version: 1}]);
+
+    second.close();
   });
 });
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+- [ ] **Step 2: 运行测试确认失败**
 
 Run:
 
@@ -261,9 +197,9 @@ Run:
 npm test -- server/storage/sqlite/sqliteClient.test.ts
 ```
 
-Expected: FAIL with `Cannot find module './sqliteClient'`.
+Expected: FAIL，提示找不到 `./sqliteClient`。
 
-- [ ] **Step 3: Implement migrations**
+- [ ] **Step 3: 实现 migrations**
 
 Create `server/storage/sqlite/migrations.ts`:
 
@@ -279,24 +215,14 @@ interface Migration {
 const migrations: Migration[] = [
   {
     version: 1,
-    name: 'create_initial_schema',
+    name: 'initial_schema',
     sql: `
-      create table if not exists schema_migrations (
-        version integer primary key,
-        name text not null,
-        executed_at text not null
-      );
-
       create table if not exists users (
         id integer primary key,
         username text not null,
         display_name text not null,
         created_at text not null
       );
-
-      insert into users (id, username, display_name, created_at)
-      values (1, 'demo', 'Demo User', datetime('now'))
-      on conflict(id) do nothing;
 
       create table if not exists categories (
         id integer primary key,
@@ -322,7 +248,7 @@ const migrations: Migration[] = [
         foreign key (category_id) references categories(id)
       );
 
-      create index if not exists idx_tasks_user_planned_date on tasks(user_id, planned_date);
+      create index if not exists idx_tasks_user_date on tasks(user_id, planned_date);
       create index if not exists idx_tasks_user_status on tasks(user_id, status);
       create index if not exists idx_tasks_user_category on tasks(user_id, category_id);
 
@@ -341,7 +267,7 @@ const migrations: Migration[] = [
       );
 
       create index if not exists idx_sessions_user_status on task_execution_sessions(user_id, status);
-      create index if not exists idx_sessions_user_started_at on task_execution_sessions(user_id, started_at);
+      create index if not exists idx_sessions_user_started on task_execution_sessions(user_id, started_at);
       create index if not exists idx_sessions_task on task_execution_sessions(task_id);
 
       create table if not exists daily_reports (
@@ -368,12 +294,16 @@ const migrations: Migration[] = [
         foreign key (user_id) references users(id),
         unique(user_id, week_start_date)
       );
+
+      insert into users (id, username, display_name, created_at)
+      values (1, 'demo', 'Demo User', datetime('now'))
+      on conflict(id) do nothing;
     `,
   },
 ];
 
-export function runMigrations(database: Database.Database): void {
-  database.exec(`
+export function runMigrations(db: Database.Database): void {
+  db.exec(`
     create table if not exists schema_migrations (
       version integer primary key,
       name text not null,
@@ -381,34 +311,35 @@ export function runMigrations(database: Database.Database): void {
     );
   `);
 
-  const hasMigration = database.prepare('select 1 from schema_migrations where version = ?');
-  const insertMigration = database.prepare(
-    'insert into schema_migrations (version, name, executed_at) values (?, ?, ?)',
+  const applied = new Set(
+    (db.prepare('select version from schema_migrations').all() as Array<{version: number}>).map((row) => row.version),
   );
 
   for (const migration of migrations) {
-    if (hasMigration.get(migration.version)) {
+    if (applied.has(migration.version)) {
       continue;
     }
 
-    const execute = database.transaction(() => {
-      database.exec(migration.sql);
-      insertMigration.run(migration.version, migration.name, new Date().toISOString());
+    const applyMigration = db.transaction(() => {
+      db.exec(migration.sql);
+      db.prepare('insert into schema_migrations (version, name, executed_at) values (?, ?, ?)')
+        .run(migration.version, migration.name, new Date().toISOString());
     });
 
-    execute();
+    applyMigration();
   }
 }
 ```
 
-- [ ] **Step 4: Implement SQLite client**
+- [ ] **Step 4: 实现 SQLite client**
 
 Create `server/storage/sqlite/sqliteClient.ts`:
 
 ```ts
-import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import Database from 'better-sqlite3';
 
 import {runMigrations} from './migrations';
 
@@ -418,15 +349,15 @@ export function openSqliteClient(filePath: string): Database.Database {
     fs.mkdirSync(directory, {recursive: true});
   }
 
-  const database = new Database(filePath);
-  database.pragma('foreign_keys = ON');
-  runMigrations(database);
+  const db = new Database(filePath);
+  db.pragma('foreign_keys = ON');
+  runMigrations(db);
 
-  return database;
+  return db;
 }
 ```
 
-- [ ] **Step 5: Run the SQLite client test**
+- [ ] **Step 5: 运行测试确认通过**
 
 Run:
 
@@ -434,36 +365,123 @@ Run:
 npm test -- server/storage/sqlite/sqliteClient.test.ts
 ```
 
-Expected: PASS.
+Expected: 2 tests passed。
 
-- [ ] **Step 6: Commit Task 2**
+- [ ] **Step 6: 提交 migration 和 client**
+
+Run:
 
 ```bash
 git add server/storage/sqlite/migrations.ts server/storage/sqlite/sqliteClient.ts server/storage/sqlite/sqliteClient.test.ts
-git commit -m "feat: add sqlite client migrations"
+git commit -m "feat: add sqlite migration client"
 ```
 
 ---
 
-## Task 3: Add SQLite Row Mappers And Test Utilities
+## Task 3: SQLite row mappers
 
 **Files:**
 - Create: `server/storage/sqlite/repositories/rowMappers.ts`
-- Create: `server/storage/sqlite/testUtils.ts`
-- Test: covered by Task 4-7 repository tests.
+- Test: `server/storage/sqlite/repositories/rowMappers.test.ts`
 
-- [ ] **Step 1: Create row mappers**
+- [ ] **Step 1: 写 row mapper 测试**
+
+Create `server/storage/sqlite/repositories/rowMappers.test.ts`:
+
+```ts
+import {describe, expect, it} from 'vitest';
+
+import {
+  mapCategoryRow,
+  mapDailyReportRow,
+  mapSessionRow,
+  mapTaskRow,
+  mapWeeklyReviewRow,
+} from './rowMappers';
+
+describe('sqlite row mappers', () => {
+  it('maps snake_case rows into domain entities', () => {
+    expect(mapCategoryRow({
+      id: 1,
+      user_id: 1,
+      name: '工作',
+      color: '#ef4444',
+      sort_order: 10,
+      created_at: '2026-06-05T00:00:00.000Z',
+      updated_at: '2026-06-05T00:00:00.000Z',
+    })).toEqual({
+      id: 1,
+      userId: 1,
+      name: '工作',
+      color: '#ef4444',
+      sortOrder: 10,
+      createdAt: '2026-06-05T00:00:00.000Z',
+      updatedAt: '2026-06-05T00:00:00.000Z',
+    });
+
+    expect(mapTaskRow({
+      id: 2,
+      user_id: 1,
+      category_id: 1,
+      title: '写方案',
+      planned_date: '2026-06-05',
+      status: 'TODO',
+      created_at: '2026-06-05T00:00:00.000Z',
+      updated_at: '2026-06-05T00:00:00.000Z',
+    }).categoryId).toBe(1);
+
+    expect(mapSessionRow({
+      id: 3,
+      task_id: 2,
+      user_id: 1,
+      started_at: '2026-06-05T01:00:00.000Z',
+      ended_at: null,
+      duration_seconds: null,
+      status: 'RUNNING',
+      created_at: '2026-06-05T01:00:00.000Z',
+      task_title: null,
+    }).endedAt).toBeUndefined();
+
+    expect(mapDailyReportRow({
+      id: 4,
+      user_id: 1,
+      report_date: '2026-06-05',
+      content: '日报',
+      generator_type: 'RULE_BASED',
+      created_at: '2026-06-05T00:00:00.000Z',
+      updated_at: '2026-06-05T00:00:00.000Z',
+    }).reportDate).toBe('2026-06-05');
+
+    expect(mapWeeklyReviewRow({
+      id: 5,
+      user_id: 1,
+      week_start_date: '2026-06-01',
+      week_end_date: '2026-06-07',
+      content: '周报',
+      generator_type: 'RULE_BASED',
+      created_at: '2026-06-05T00:00:00.000Z',
+      updated_at: '2026-06-05T00:00:00.000Z',
+    }).weekStartDate).toBe('2026-06-01');
+  });
+});
+```
+
+- [ ] **Step 2: 运行测试确认失败**
+
+Run:
+
+```bash
+npm test -- server/storage/sqlite/repositories/rowMappers.test.ts
+```
+
+Expected: FAIL，提示找不到 `./rowMappers`。
+
+- [ ] **Step 3: 实现 row mappers**
 
 Create `server/storage/sqlite/repositories/rowMappers.ts`:
 
 ```ts
-import type {
-  Category,
-  DailyReport,
-  Task,
-  TaskExecutionSession,
-  WeeklyReview,
-} from '../../../../shared/domain/entities';
+import type {Category, DailyReport, Task, TaskExecutionSession, WeeklyReview} from '../../../../shared/domain/entities';
 import type {ReportGeneratorType, SessionStatus, TaskStatus} from '../../../../shared/domain/status';
 
 export interface CategoryRow {
@@ -482,19 +500,19 @@ export interface TaskRow {
   category_id: number;
   title: string;
   planned_date: string;
-  status: TaskStatus;
+  status: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface FocusSessionRow {
+export interface SessionRow {
   id: number;
   task_id: number;
   user_id: number;
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;
-  status: SessionStatus;
+  status: string;
   created_at: string;
   task_title: string | null;
 }
@@ -504,7 +522,7 @@ export interface DailyReportRow {
   user_id: number;
   report_date: string;
   content: string;
-  generator_type: ReportGeneratorType;
+  generator_type: string;
   created_at: string;
   updated_at: string;
 }
@@ -515,7 +533,7 @@ export interface WeeklyReviewRow {
   week_start_date: string;
   week_end_date: string;
   content: string;
-  generator_type: ReportGeneratorType;
+  generator_type: string;
   created_at: string;
   updated_at: string;
 }
@@ -539,13 +557,13 @@ export function mapTaskRow(row: TaskRow): Task {
     categoryId: row.category_id,
     title: row.title,
     plannedDate: row.planned_date,
-    status: row.status,
+    status: row.status as TaskStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-export function mapFocusSessionRow(row: FocusSessionRow): TaskExecutionSession {
+export function mapSessionRow(row: SessionRow): TaskExecutionSession {
   return {
     id: row.id,
     taskId: row.task_id,
@@ -553,7 +571,7 @@ export function mapFocusSessionRow(row: FocusSessionRow): TaskExecutionSession {
     startedAt: row.started_at,
     endedAt: row.ended_at ?? undefined,
     durationSeconds: row.duration_seconds ?? undefined,
-    status: row.status,
+    status: row.status as SessionStatus,
     createdAt: row.created_at,
     taskTitle: row.task_title ?? undefined,
   };
@@ -565,7 +583,7 @@ export function mapDailyReportRow(row: DailyReportRow): DailyReport {
     userId: row.user_id,
     reportDate: row.report_date,
     content: row.content,
-    generatorType: row.generator_type,
+    generatorType: row.generator_type as ReportGeneratorType,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -578,135 +596,95 @@ export function mapWeeklyReviewRow(row: WeeklyReviewRow): WeeklyReview {
     weekStartDate: row.week_start_date,
     weekEndDate: row.week_end_date,
     content: row.content,
-    generatorType: row.generator_type,
+    generatorType: row.generator_type as ReportGeneratorType,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 ```
 
-- [ ] **Step 2: Create SQLite test utilities**
-
-Create `server/storage/sqlite/testUtils.ts`:
-
-```ts
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-
-import type Database from 'better-sqlite3';
-
-import {openSqliteClient} from './sqliteClient';
-
-export interface TestSqliteClient {
-  database: Database.Database;
-  filePath: string;
-  cleanup: () => void;
-}
-
-export function createTestSqliteClient(): TestSqliteClient {
-  const filePath = path.join(os.tmpdir(), `plantode-test-${Date.now()}-${Math.random().toString(16).slice(2)}.sqlite`);
-  const database = openSqliteClient(filePath);
-
-  return {
-    database,
-    filePath,
-    cleanup() {
-      database.close();
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    },
-  };
-}
-```
-
-- [ ] **Step 3: Run type check**
+- [ ] **Step 4: 运行 mapper 测试**
 
 Run:
 
 ```bash
-npm run lint
+npm test -- server/storage/sqlite/repositories/rowMappers.test.ts
 ```
 
-Expected: PASS.
+Expected: PASS。
 
-- [ ] **Step 4: Commit Task 3**
+- [ ] **Step 5: 提交 row mappers**
+
+Run:
 
 ```bash
-git add server/storage/sqlite/repositories/rowMappers.ts server/storage/sqlite/testUtils.ts
-git commit -m "feat: add sqlite row mapping helpers"
+git add server/storage/sqlite/repositories/rowMappers.ts server/storage/sqlite/repositories/rowMappers.test.ts
+git commit -m "feat: add sqlite row mappers"
 ```
 
 ---
 
-## Task 4: Implement Category SQLite Repository
+## Task 4: Category 和 Task SQLite repositories
 
 **Files:**
 - Create: `server/storage/sqlite/repositories/categorySqliteRepository.ts`
 - Test: `server/storage/sqlite/repositories/categorySqliteRepository.test.ts`
+- Create: `server/storage/sqlite/repositories/taskSqliteRepository.ts`
+- Test: `server/storage/sqlite/repositories/taskSqliteRepository.test.ts`
 
-- [ ] **Step 1: Write failing category repository tests**
+- [ ] **Step 1: 写 Category repository 失败测试**
 
 Create `server/storage/sqlite/repositories/categorySqliteRepository.test.ts`:
 
 ```ts
+import type Database from 'better-sqlite3';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 
-import {createTestSqliteClient, type TestSqliteClient} from '../testUtils';
+import {openSqliteClient} from '../sqliteClient';
+import {createTestSqliteFile, type TestSqliteFile} from '../testSqlite';
 import {CategorySqliteRepository} from './categorySqliteRepository';
 
-let client: TestSqliteClient;
+let sqliteFile: TestSqliteFile;
+let db: Database.Database;
+let repository: CategorySqliteRepository;
 
 beforeEach(() => {
-  client = createTestSqliteClient();
+  sqliteFile = createTestSqliteFile('plantode-category-repository');
+  db = openSqliteClient(sqliteFile.filePath);
+  repository = new CategorySqliteRepository(db);
 });
 
 afterEach(() => {
-  client.cleanup();
+  db.close();
+  sqliteFile.cleanup();
 });
 
 describe('CategorySqliteRepository', () => {
-  it('creates, lists, finds, updates, checks names, and removes categories', () => {
-    const repository = new CategorySqliteRepository(client.database);
+  it('creates, lists, updates, finds by name, and removes categories', () => {
+    const first = repository.create({userId: 1, name: ' 工作 ', color: '#ef4444', sortOrder: 20});
+    const second = repository.create({userId: 1, name: '生活', color: '#22c55e', sortOrder: 10});
 
-    const first = repository.create({
-      userId: 1,
-      name: '工作',
-      color: '#ef4444',
-      sortOrder: 20,
-    });
-    const second = repository.create({
-      userId: 1,
-      name: '生活',
-      color: '#22c55e',
-      sortOrder: 10,
-    });
-
-    expect(first.id).toBe(1);
+    expect(first).toMatchObject({id: 1, userId: 1, name: '工作', color: '#ef4444', sortOrder: 20});
+    expect(second.id).toBe(2);
+    expect(repository.existsByName(1, '工作')).toBe(true);
     expect(repository.existsByName(1, ' 工作 ')).toBe(true);
     expect(repository.existsByName(1, '不存在')).toBe(false);
-    expect(repository.getById(first.id, 1)?.name).toBe('工作');
+
     expect(repository.listByUser(1).map((category) => category.name)).toEqual(['生活', '工作']);
+    expect(repository.getById(first.id, 1)?.name).toBe('工作');
 
-    const updated = repository.update({
-      id: second.id,
-      userId: 1,
-      name: '健康',
-      color: '#0ea5e9',
-      sortOrder: 5,
-    });
+    const updated = repository.update({id: first.id, userId: 1, name: '深度工作', color: '', sortOrder: 5});
+    expect(updated).toMatchObject({name: '深度工作', color: '#64748b', sortOrder: 5});
+    expect(repository.listByUser(1).map((category) => category.name)).toEqual(['深度工作', '生活']);
 
-    expect(updated?.name).toBe('健康');
-    expect(updated?.updatedAt).not.toBe(second.updatedAt);
-    expect(repository.remove(first.id, 1)).toBe(true);
-    expect(repository.getById(first.id, 1)).toBeUndefined();
+    expect(repository.remove(second.id, 1)).toBe(true);
     expect(repository.remove(999, 1)).toBe(false);
+    expect(repository.listByUser(1).map((category) => category.name)).toEqual(['深度工作']);
   });
 });
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+- [ ] **Step 2: 运行 Category 测试确认失败**
 
 Run:
 
@@ -714,187 +692,118 @@ Run:
 npm test -- server/storage/sqlite/repositories/categorySqliteRepository.test.ts
 ```
 
-Expected: FAIL with `Cannot find module './categorySqliteRepository'`.
+Expected: FAIL，提示找不到 `./categorySqliteRepository`。
 
-- [ ] **Step 3: Implement category repository**
+- [ ] **Step 3: 实现 Category repository**
 
-Create `server/storage/sqlite/repositories/categorySqliteRepository.ts`:
+Create `server/storage/sqlite/repositories/categorySqliteRepository.ts` with methods matching `CategoryRepository`. Required behavior:
 
 ```ts
 import type Database from 'better-sqlite3';
 
-import type {
-  CategoryRepository,
-  CreateCategoryInput,
-  UpdateCategoryInput,
-} from '../../../modules/categories/repository';
+import type {CategoryRepository, CreateCategoryInput, UpdateCategoryInput} from '../../../modules/categories/repository';
 import type {Category} from '../../../../shared/domain/entities';
 import {mapCategoryRow, type CategoryRow} from './rowMappers';
 
 export class CategorySqliteRepository implements CategoryRepository {
-  constructor(private readonly database: Database.Database) {}
+  constructor(private readonly db: Database.Database) {}
 
   listByUser(userId: number): Category[] {
-    const rows = this.database
-      .prepare(
-        `
-          select id, user_id, name, color, sort_order, created_at, updated_at
-          from categories
-          where user_id = ?
-          order by sort_order asc, name asc
-        `,
-      )
-      .all(userId) as CategoryRow[];
-
-    return rows.map(mapCategoryRow);
+    return (this.db
+      .prepare('select * from categories where user_id = ? order by sort_order asc, name asc')
+      .all(userId) as CategoryRow[]).map(mapCategoryRow);
   }
 
   getById(id: number, userId: number): Category | undefined {
-    const row = this.database
-      .prepare(
-        `
-          select id, user_id, name, color, sort_order, created_at, updated_at
-          from categories
-          where id = ? and user_id = ?
-        `,
-      )
-      .get(id, userId) as CategoryRow | undefined;
-
+    const row = this.db.prepare('select * from categories where id = ? and user_id = ?').get(id, userId) as CategoryRow | undefined;
     return row ? mapCategoryRow(row) : undefined;
   }
 
   existsByName(userId: number, name: string): boolean {
     const normalizedName = name.trim().toLowerCase();
-    const row = this.database
-      .prepare('select 1 from categories where user_id = ? and lower(trim(name)) = ? limit 1')
+    const row = this.db
+      .prepare('select id from categories where user_id = ? and lower(trim(name)) = ? limit 1')
       .get(userId, normalizedName);
-
     return Boolean(row);
   }
 
   create(input: CreateCategoryInput): Category {
     const now = new Date().toISOString();
-    const result = this.database
-      .prepare(
-        `
-          insert into categories (user_id, name, color, sort_order, created_at, updated_at)
-          values (?, ?, ?, ?, ?, ?)
-        `,
-      )
+    const result = this.db
+      .prepare('insert into categories (user_id, name, color, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?)')
       .run(input.userId, input.name.trim(), input.color || '#64748b', input.sortOrder, now, now);
-
     return this.getById(Number(result.lastInsertRowid), input.userId)!;
   }
 
   update(input: UpdateCategoryInput): Category | undefined {
     const now = new Date().toISOString();
-    const result = this.database
-      .prepare(
-        `
-          update categories
-          set name = ?, color = ?, sort_order = ?, updated_at = ?
-          where id = ? and user_id = ?
-        `,
-      )
+    const result = this.db
+      .prepare('update categories set name = ?, color = ?, sort_order = ?, updated_at = ? where id = ? and user_id = ?')
       .run(input.name.trim(), input.color || '#64748b', input.sortOrder, now, input.id, input.userId);
-
-    if (result.changes === 0) {
-      return undefined;
-    }
-
+    if (result.changes === 0) return undefined;
     return this.getById(input.id, input.userId);
   }
 
   remove(id: number, userId: number): boolean {
-    const result = this.database
-      .prepare('delete from categories where id = ? and user_id = ?')
-      .run(id, userId);
-
-    return result.changes > 0;
+    return this.db.prepare('delete from categories where id = ? and user_id = ?').run(id, userId).changes > 0;
   }
 }
 ```
 
-- [ ] **Step 4: Run the category repository test**
-
-Run:
-
-```bash
-npm test -- server/storage/sqlite/repositories/categorySqliteRepository.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 5: Commit Task 4**
-
-```bash
-git add server/storage/sqlite/repositories/categorySqliteRepository.ts server/storage/sqlite/repositories/categorySqliteRepository.test.ts
-git commit -m "feat: add sqlite category repository"
-```
-
----
-
-## Task 5: Implement Task SQLite Repository
-
-**Files:**
-- Create: `server/storage/sqlite/repositories/taskSqliteRepository.ts`
-- Test: `server/storage/sqlite/repositories/taskSqliteRepository.test.ts`
-
-- [ ] **Step 1: Write failing task repository tests**
+- [ ] **Step 4: 写 Task repository 失败测试**
 
 Create `server/storage/sqlite/repositories/taskSqliteRepository.test.ts`:
 
 ```ts
+import type Database from 'better-sqlite3';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 
-import {createTestSqliteClient, type TestSqliteClient} from '../testUtils';
+import {openSqliteClient} from '../sqliteClient';
+import {createTestSqliteFile, type TestSqliteFile} from '../testSqlite';
 import {CategorySqliteRepository} from './categorySqliteRepository';
 import {TaskSqliteRepository} from './taskSqliteRepository';
 
-let client: TestSqliteClient;
+let sqliteFile: TestSqliteFile;
+let db: Database.Database;
+let categories: CategorySqliteRepository;
+let tasks: TaskSqliteRepository;
 
 beforeEach(() => {
-  client = createTestSqliteClient();
+  sqliteFile = createTestSqliteFile('plantode-task-repository');
+  db = openSqliteClient(sqliteFile.filePath);
+  categories = new CategorySqliteRepository(db);
+  tasks = new TaskSqliteRepository(db);
 });
 
 afterEach(() => {
-  client.cleanup();
+  db.close();
+  sqliteFile.cleanup();
 });
 
 describe('TaskSqliteRepository', () => {
-  it('creates, filters, retrieves, and updates task status', () => {
-    const categories = new CategorySqliteRepository(client.database);
-    const tasks = new TaskSqliteRepository(client.database);
-    const category = categories.create({userId: 1, name: '工作', color: '#ef4444', sortOrder: 1});
+  it('creates, filters, reads, and updates task status', () => {
+    const work = categories.create({userId: 1, name: '工作', color: '#ef4444', sortOrder: 1});
+    const life = categories.create({userId: 1, name: '生活', color: '#22c55e', sortOrder: 2});
 
-    const first = tasks.create({
-      userId: 1,
-      categoryId: category.id,
-      title: '写方案',
-      plannedDate: '2026-06-05',
-    });
-    tasks.create({
-      userId: 1,
-      categoryId: category.id,
-      title: '复盘',
-      plannedDate: '2026-06-06',
-    });
+    const first = tasks.create({userId: 1, categoryId: work.id, title: ' 写方案 ', plannedDate: '2026-06-05'});
+    const second = tasks.create({userId: 1, categoryId: life.id, title: '运动', plannedDate: '2026-06-06'});
 
-    expect(first.id).toBe(1);
-    expect(first.status).toBe('TODO');
+    expect(first).toMatchObject({id: 1, title: '写方案', status: 'TODO'});
+    expect(second.id).toBe(2);
     expect(tasks.getById(first.id, 1)?.title).toBe('写方案');
-    expect(tasks.listByFilters({userId: 1, plannedDate: '2026-06-05'}).map((task) => task.title)).toEqual(['写方案']);
-    expect(tasks.listByFilters({userId: 1, categoryId: category.id}).length).toBe(2);
 
-    const updated = tasks.updateStatus(first.id, 1, 'DONE');
-    expect(updated?.status).toBe('DONE');
-    expect(tasks.listByFilters({userId: 1, status: 'DONE'}).map((task) => task.id)).toEqual([first.id]);
+    expect(tasks.listByFilters({userId: 1, plannedDate: '2026-06-05'}).map((task) => task.title)).toEqual(['写方案']);
+    expect(tasks.listByFilters({userId: 1, categoryId: life.id}).map((task) => task.title)).toEqual(['运动']);
+    expect(tasks.listByFilters({userId: 1, status: 'TODO'}).map((task) => task.title)).toEqual(['写方案', '运动']);
+
+    expect(tasks.updateStatus(first.id, 1, 'DONE')).toMatchObject({status: 'DONE'});
     expect(tasks.updateStatus(999, 1, 'DONE')).toBeUndefined();
+    expect(tasks.listByFilters({userId: 1, status: 'DONE'}).map((task) => task.title)).toEqual(['写方案']);
   });
 });
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+- [ ] **Step 5: 运行 Task 测试确认失败**
 
 Run:
 
@@ -902,188 +811,160 @@ Run:
 npm test -- server/storage/sqlite/repositories/taskSqliteRepository.test.ts
 ```
 
-Expected: FAIL with `Cannot find module './taskSqliteRepository'`.
+Expected: FAIL，提示找不到 `./taskSqliteRepository`。
 
-- [ ] **Step 3: Implement task repository**
+- [ ] **Step 6: 实现 Task repository**
 
 Create `server/storage/sqlite/repositories/taskSqliteRepository.ts`:
 
 ```ts
 import type Database from 'better-sqlite3';
 
-import type {
-  CreateTaskInput,
-  TaskFilters,
-  TaskRepository,
-} from '../../../modules/tasks/repository';
+import type {CreateTaskInput, TaskFilters, TaskRepository} from '../../../modules/tasks/repository';
 import type {Task} from '../../../../shared/domain/entities';
 import type {TaskStatus} from '../../../../shared/domain/status';
 import {mapTaskRow, type TaskRow} from './rowMappers';
 
 export class TaskSqliteRepository implements TaskRepository {
-  constructor(private readonly database: Database.Database) {}
+  constructor(private readonly db: Database.Database) {}
 
   listByFilters(filters: TaskFilters): Task[] {
-    const conditions = ['user_id = ?'];
-    const values: Array<number | string> = [filters.userId];
-
+    const clauses = ['user_id = ?'];
+    const values: Array<string | number> = [filters.userId];
     if (filters.plannedDate) {
-      conditions.push('planned_date = ?');
+      clauses.push('planned_date = ?');
       values.push(filters.plannedDate);
     }
     if (filters.status) {
-      conditions.push('status = ?');
+      clauses.push('status = ?');
       values.push(filters.status);
     }
     if (filters.categoryId) {
-      conditions.push('category_id = ?');
+      clauses.push('category_id = ?');
       values.push(filters.categoryId);
     }
 
-    const rows = this.database
-      .prepare(
-        `
-          select id, user_id, category_id, title, planned_date, status, created_at, updated_at
-          from tasks
-          where ${conditions.join(' and ')}
-          order by created_at asc
-        `,
-      )
-      .all(...values) as TaskRow[];
-
-    return rows.map(mapTaskRow);
+    return (this.db
+      .prepare(`select * from tasks where ${clauses.join(' and ')} order by created_at asc`)
+      .all(...values) as TaskRow[]).map(mapTaskRow);
   }
 
   getById(taskId: number, userId: number): Task | undefined {
-    const row = this.database
-      .prepare(
-        `
-          select id, user_id, category_id, title, planned_date, status, created_at, updated_at
-          from tasks
-          where id = ? and user_id = ?
-        `,
-      )
-      .get(taskId, userId) as TaskRow | undefined;
-
+    const row = this.db.prepare('select * from tasks where id = ? and user_id = ?').get(taskId, userId) as TaskRow | undefined;
     return row ? mapTaskRow(row) : undefined;
   }
 
   create(input: CreateTaskInput): Task {
     const now = new Date().toISOString();
-    const result = this.database
-      .prepare(
-        `
-          insert into tasks (user_id, category_id, title, planned_date, status, created_at, updated_at)
-          values (?, ?, ?, ?, 'TODO', ?, ?)
-        `,
-      )
-      .run(input.userId, input.categoryId, input.title.trim(), input.plannedDate, now, now);
-
+    const result = this.db
+      .prepare('insert into tasks (user_id, category_id, title, planned_date, status, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?)')
+      .run(input.userId, input.categoryId, input.title.trim(), input.plannedDate, 'TODO', now, now);
     return this.getById(Number(result.lastInsertRowid), input.userId)!;
   }
 
   updateStatus(taskId: number, userId: number, status: TaskStatus): Task | undefined {
     const now = new Date().toISOString();
-    const result = this.database
-      .prepare(
-        `
-          update tasks
-          set status = ?, updated_at = ?
-          where id = ? and user_id = ?
-        `,
-      )
+    const result = this.db
+      .prepare('update tasks set status = ?, updated_at = ? where id = ? and user_id = ?')
       .run(status, now, taskId, userId);
-
-    if (result.changes === 0) {
-      return undefined;
-    }
-
+    if (result.changes === 0) return undefined;
     return this.getById(taskId, userId);
   }
 }
 ```
 
-- [ ] **Step 4: Run the task repository test**
+- [ ] **Step 7: 运行 Category 和 Task 测试**
 
 Run:
 
 ```bash
-npm test -- server/storage/sqlite/repositories/taskSqliteRepository.test.ts
+npm test -- server/storage/sqlite/repositories/categorySqliteRepository.test.ts server/storage/sqlite/repositories/taskSqliteRepository.test.ts
 ```
 
-Expected: PASS.
+Expected: PASS。
 
-- [ ] **Step 5: Commit Task 5**
+- [ ] **Step 8: 提交 Category 和 Task repositories**
+
+Run:
 
 ```bash
-git add server/storage/sqlite/repositories/taskSqliteRepository.ts server/storage/sqlite/repositories/taskSqliteRepository.test.ts
-git commit -m "feat: add sqlite task repository"
+git add server/storage/sqlite/repositories/categorySqliteRepository.ts server/storage/sqlite/repositories/categorySqliteRepository.test.ts server/storage/sqlite/repositories/taskSqliteRepository.ts server/storage/sqlite/repositories/taskSqliteRepository.test.ts
+git commit -m "feat: add sqlite category and task repositories"
 ```
 
 ---
 
-## Task 6: Implement Focus Session SQLite Repository
+## Task 5: Focus session 和 Report SQLite repositories
 
 **Files:**
 - Create: `server/storage/sqlite/repositories/focusSessionSqliteRepository.ts`
 - Test: `server/storage/sqlite/repositories/focusSessionSqliteRepository.test.ts`
+- Create: `server/storage/sqlite/repositories/reportSqliteRepository.ts`
+- Test: `server/storage/sqlite/repositories/reportSqliteRepository.test.ts`
 
-- [ ] **Step 1: Write failing focus session tests**
+- [ ] **Step 1: 写 Focus session repository 失败测试**
 
 Create `server/storage/sqlite/repositories/focusSessionSqliteRepository.test.ts`:
 
 ```ts
+import type Database from 'better-sqlite3';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 
-import {createTestSqliteClient, type TestSqliteClient} from '../testUtils';
+import {openSqliteClient} from '../sqliteClient';
+import {createTestSqliteFile, type TestSqliteFile} from '../testSqlite';
 import {CategorySqliteRepository} from './categorySqliteRepository';
 import {FocusSessionSqliteRepository} from './focusSessionSqliteRepository';
 import {TaskSqliteRepository} from './taskSqliteRepository';
 
-let client: TestSqliteClient;
+let sqliteFile: TestSqliteFile;
+let db: Database.Database;
+let categories: CategorySqliteRepository;
+let tasks: TaskSqliteRepository;
+let sessions: FocusSessionSqliteRepository;
 
 beforeEach(() => {
-  client = createTestSqliteClient();
+  sqliteFile = createTestSqliteFile('plantode-focus-repository');
+  db = openSqliteClient(sqliteFile.filePath);
+  categories = new CategorySqliteRepository(db);
+  tasks = new TaskSqliteRepository(db);
+  sessions = new FocusSessionSqliteRepository(db);
 });
 
 afterEach(() => {
-  client.cleanup();
+  db.close();
+  sqliteFile.cleanup();
 });
 
 describe('FocusSessionSqliteRepository', () => {
-  it('creates, queries, and stops running sessions', () => {
-    const categories = new CategorySqliteRepository(client.database);
-    const tasks = new TaskSqliteRepository(client.database);
-    const sessions = new FocusSessionSqliteRepository(client.database);
+  it('creates running sessions, lists them, and stops them', () => {
     const category = categories.create({userId: 1, name: '工作', color: '#ef4444', sortOrder: 1});
     const task = tasks.create({userId: 1, categoryId: category.id, title: '写方案', plannedDate: '2026-06-05'});
 
     const running = sessions.createRunning({
-      userId: 1,
       taskId: task.id,
+      userId: 1,
       startedAt: '2026-06-05T01:00:00.000Z',
     });
 
-    expect(running.status).toBe('RUNNING');
+    expect(running).toMatchObject({id: 1, taskId: task.id, userId: 1, status: 'RUNNING'});
     expect(sessions.getRunningByUser(1)?.id).toBe(running.id);
     expect(sessions.listByTask(task.id, 1).map((session) => session.id)).toEqual([running.id]);
     expect(sessions.listByDateRange(1, '2026-06-05T00:00:00.000Z', '2026-06-05T23:59:59.999Z')).toHaveLength(1);
 
     const stopped = sessions.stop({
-      userId: 1,
       sessionId: running.id,
+      userId: 1,
       endedAt: '2026-06-05T01:30:00.000Z',
     });
 
-    expect(stopped?.status).toBe('COMPLETED');
-    expect(stopped?.durationSeconds).toBe(1800);
+    expect(stopped).toMatchObject({status: 'COMPLETED', durationSeconds: 1800});
     expect(sessions.getRunningByUser(1)).toBeUndefined();
-    expect(sessions.stop({userId: 1, sessionId: running.id})).toBeUndefined();
+    expect(sessions.stop({sessionId: running.id, userId: 1})).toBeUndefined();
   });
 });
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+- [ ] **Step 2: 运行 Focus 测试确认失败**
 
 Run:
 
@@ -1091,198 +972,121 @@ Run:
 npm test -- server/storage/sqlite/repositories/focusSessionSqliteRepository.test.ts
 ```
 
-Expected: FAIL with `Cannot find module './focusSessionSqliteRepository'`.
+Expected: FAIL，提示找不到 `./focusSessionSqliteRepository`。
 
-- [ ] **Step 3: Implement focus session repository**
+- [ ] **Step 3: 实现 Focus session repository**
 
 Create `server/storage/sqlite/repositories/focusSessionSqliteRepository.ts`:
 
 ```ts
 import type Database from 'better-sqlite3';
 
-import type {
-  CreateRunningSessionInput,
-  FocusSessionRepository,
-  StopSessionInput,
-} from '../../../modules/focus/repository';
+import type {CreateRunningSessionInput, FocusSessionRepository, StopSessionInput} from '../../../modules/focus/repository';
 import type {TaskExecutionSession} from '../../../../shared/domain/entities';
-import {mapFocusSessionRow, type FocusSessionRow} from './rowMappers';
+import {mapSessionRow, type SessionRow} from './rowMappers';
 
 function calculateDurationSeconds(startedAt: string, endedAt: string): number {
   return Math.max(0, Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000));
 }
 
 export class FocusSessionSqliteRepository implements FocusSessionRepository {
-  constructor(private readonly database: Database.Database) {}
+  constructor(private readonly db: Database.Database) {}
 
   getRunningByUser(userId: number): TaskExecutionSession | undefined {
-    const row = this.database
-      .prepare(
-        `
-          select id, task_id, user_id, started_at, ended_at, duration_seconds, status, created_at, task_title
-          from task_execution_sessions
-          where user_id = ? and status = 'RUNNING'
-          limit 1
-        `,
-      )
-      .get(userId) as FocusSessionRow | undefined;
-
-    return row ? mapFocusSessionRow(row) : undefined;
+    const row = this.db
+      .prepare("select * from task_execution_sessions where user_id = ? and status = 'RUNNING' limit 1")
+      .get(userId) as SessionRow | undefined;
+    return row ? mapSessionRow(row) : undefined;
   }
 
   listByTask(taskId: number, userId: number): TaskExecutionSession[] {
-    const rows = this.database
-      .prepare(
-        `
-          select id, task_id, user_id, started_at, ended_at, duration_seconds, status, created_at, task_title
-          from task_execution_sessions
-          where task_id = ? and user_id = ?
-          order by started_at desc
-        `,
-      )
-      .all(taskId, userId) as FocusSessionRow[];
-
-    return rows.map(mapFocusSessionRow);
+    return (this.db
+      .prepare('select * from task_execution_sessions where task_id = ? and user_id = ? order by started_at desc')
+      .all(taskId, userId) as SessionRow[]).map(mapSessionRow);
   }
 
   listByDateRange(userId: number, startAt: string, endAt: string): TaskExecutionSession[] {
-    const rows = this.database
-      .prepare(
-        `
-          select id, task_id, user_id, started_at, ended_at, duration_seconds, status, created_at, task_title
-          from task_execution_sessions
-          where user_id = ? and started_at >= ? and started_at <= ?
-          order by started_at asc
-        `,
-      )
-      .all(userId, startAt, endAt) as FocusSessionRow[];
-
-    return rows.map(mapFocusSessionRow);
+    return (this.db
+      .prepare('select * from task_execution_sessions where user_id = ? and started_at >= ? and started_at <= ? order by started_at asc')
+      .all(userId, startAt, endAt) as SessionRow[]).map(mapSessionRow);
   }
 
   createRunning(input: CreateRunningSessionInput): TaskExecutionSession {
     const startedAt = input.startedAt ?? new Date().toISOString();
-    const result = this.database
-      .prepare(
-        `
-          insert into task_execution_sessions (task_id, user_id, started_at, status, created_at)
-          values (?, ?, ?, 'RUNNING', ?)
-        `,
-      )
-      .run(input.taskId, input.userId, startedAt, startedAt);
-
-    return this.getById(Number(result.lastInsertRowid), input.userId)!;
+    const result = this.db
+      .prepare('insert into task_execution_sessions (task_id, user_id, started_at, status, created_at) values (?, ?, ?, ?, ?)')
+      .run(input.taskId, input.userId, startedAt, 'RUNNING', startedAt);
+    const row = this.db.prepare('select * from task_execution_sessions where id = ?').get(Number(result.lastInsertRowid)) as SessionRow;
+    return mapSessionRow(row);
   }
 
   stop(input: StopSessionInput): TaskExecutionSession | undefined {
-    const existing = this.getById(input.sessionId, input.userId);
-    if (!existing || existing.status !== 'RUNNING') {
-      return undefined;
-    }
+    const row = this.db
+      .prepare("select * from task_execution_sessions where id = ? and user_id = ? and status = 'RUNNING'")
+      .get(input.sessionId, input.userId) as SessionRow | undefined;
+    if (!row) return undefined;
 
     const endedAt = input.endedAt ?? new Date().toISOString();
-    const durationSeconds = calculateDurationSeconds(existing.startedAt, endedAt);
-    this.database
-      .prepare(
-        `
-          update task_execution_sessions
-          set ended_at = ?, duration_seconds = ?, status = 'COMPLETED'
-          where id = ? and user_id = ? and status = 'RUNNING'
-        `,
-      )
+    const durationSeconds = calculateDurationSeconds(row.started_at, endedAt);
+    this.db
+      .prepare("update task_execution_sessions set ended_at = ?, duration_seconds = ?, status = 'COMPLETED' where id = ? and user_id = ?")
       .run(endedAt, durationSeconds, input.sessionId, input.userId);
 
-    return this.getById(input.sessionId, input.userId);
-  }
-
-  private getById(sessionId: number, userId: number): TaskExecutionSession | undefined {
-    const row = this.database
-      .prepare(
-        `
-          select id, task_id, user_id, started_at, ended_at, duration_seconds, status, created_at, task_title
-          from task_execution_sessions
-          where id = ? and user_id = ?
-        `,
-      )
-      .get(sessionId, userId) as FocusSessionRow | undefined;
-
-    return row ? mapFocusSessionRow(row) : undefined;
+    const updated = this.db.prepare('select * from task_execution_sessions where id = ?').get(input.sessionId) as SessionRow;
+    return mapSessionRow(updated);
   }
 }
 ```
 
-- [ ] **Step 4: Run the focus session test**
-
-Run:
-
-```bash
-npm test -- server/storage/sqlite/repositories/focusSessionSqliteRepository.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 5: Commit Task 6**
-
-```bash
-git add server/storage/sqlite/repositories/focusSessionSqliteRepository.ts server/storage/sqlite/repositories/focusSessionSqliteRepository.test.ts
-git commit -m "feat: add sqlite focus session repository"
-```
-
----
-
-## Task 7: Implement Report SQLite Repository
-
-**Files:**
-- Create: `server/storage/sqlite/repositories/reportSqliteRepository.ts`
-- Test: `server/storage/sqlite/repositories/reportSqliteRepository.test.ts`
-
-- [ ] **Step 1: Write failing report repository tests**
+- [ ] **Step 4: 写 Report repository 失败测试**
 
 Create `server/storage/sqlite/repositories/reportSqliteRepository.test.ts`:
 
 ```ts
+import type Database from 'better-sqlite3';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 
-import {createTestSqliteClient, type TestSqliteClient} from '../testUtils';
+import {openSqliteClient} from '../sqliteClient';
+import {createTestSqliteFile, type TestSqliteFile} from '../testSqlite';
 import {ReportSqliteRepository} from './reportSqliteRepository';
 
-let client: TestSqliteClient;
+let sqliteFile: TestSqliteFile;
+let db: Database.Database;
+let reports: ReportSqliteRepository;
 
 beforeEach(() => {
-  client = createTestSqliteClient();
+  sqliteFile = createTestSqliteFile('plantode-report-repository');
+  db = openSqliteClient(sqliteFile.filePath);
+  reports = new ReportSqliteRepository(db);
 });
 
 afterEach(() => {
-  client.cleanup();
+  db.close();
+  sqliteFile.cleanup();
 });
 
 describe('ReportSqliteRepository', () => {
   it('saves and updates daily reports', () => {
-    const repository = new ReportSqliteRepository(client.database);
-
-    const created = repository.saveDaily(1, '2026-06-05', 'first');
-    const updated = repository.saveDaily(1, '2026-06-05', 'second');
+    const created = reports.saveDaily(1, '2026-06-05', 'first daily');
+    const updated = reports.saveDaily(1, '2026-06-05', 'second daily');
 
     expect(created.id).toBe(updated.id);
-    expect(updated.content).toBe('second');
-    expect(repository.getDaily(1, '2026-06-05')?.content).toBe('second');
+    expect(updated.content).toBe('second daily');
+    expect(reports.getDaily(1, '2026-06-05')?.content).toBe('second daily');
   });
 
   it('saves and updates weekly reviews', () => {
-    const repository = new ReportSqliteRepository(client.database);
-
-    const created = repository.saveWeekly(1, '2026-06-01', '2026-06-07', 'first');
-    const updated = repository.saveWeekly(1, '2026-06-01', '2026-06-08', 'second');
+    const created = reports.saveWeekly(1, '2026-06-01', '2026-06-07', 'first weekly');
+    const updated = reports.saveWeekly(1, '2026-06-01', '2026-06-08', 'second weekly');
 
     expect(created.id).toBe(updated.id);
-    expect(updated.content).toBe('second');
     expect(updated.weekEndDate).toBe('2026-06-08');
-    expect(repository.getWeekly(1, '2026-06-01')?.content).toBe('second');
+    expect(reports.getWeekly(1, '2026-06-01')?.content).toBe('second weekly');
   });
 });
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+- [ ] **Step 5: 运行 Report 测试确认失败**
 
 Run:
 
@@ -1290,9 +1094,9 @@ Run:
 npm test -- server/storage/sqlite/repositories/reportSqliteRepository.test.ts
 ```
 
-Expected: FAIL with `Cannot find module './reportSqliteRepository'`.
+Expected: FAIL，提示找不到 `./reportSqliteRepository`。
 
-- [ ] **Step 3: Implement report repository**
+- [ ] **Step 6: 实现 Report repository**
 
 Create `server/storage/sqlite/repositories/reportSqliteRepository.ts`:
 
@@ -1301,136 +1105,135 @@ import type Database from 'better-sqlite3';
 
 import type {ReportRepository} from '../../../modules/reports/repository';
 import type {DailyReport, WeeklyReview} from '../../../../shared/domain/entities';
-import {
-  mapDailyReportRow,
-  mapWeeklyReviewRow,
-  type DailyReportRow,
-  type WeeklyReviewRow,
-} from './rowMappers';
+import {mapDailyReportRow, mapWeeklyReviewRow, type DailyReportRow, type WeeklyReviewRow} from './rowMappers';
 
 export class ReportSqliteRepository implements ReportRepository {
-  constructor(private readonly database: Database.Database) {}
+  constructor(private readonly db: Database.Database) {}
 
   getDaily(userId: number, reportDate: string): DailyReport | undefined {
-    const row = this.database
-      .prepare(
-        `
-          select id, user_id, report_date, content, generator_type, created_at, updated_at
-          from daily_reports
-          where user_id = ? and report_date = ?
-        `,
-      )
-      .get(userId, reportDate) as DailyReportRow | undefined;
-
+    const row = this.db.prepare('select * from daily_reports where user_id = ? and report_date = ?').get(userId, reportDate) as DailyReportRow | undefined;
     return row ? mapDailyReportRow(row) : undefined;
   }
 
   saveDaily(userId: number, reportDate: string, content: string): DailyReport {
     const now = new Date().toISOString();
-    const existing = this.getDaily(userId, reportDate);
-    if (existing) {
-      this.database
-        .prepare('update daily_reports set content = ?, updated_at = ? where id = ?')
-        .run(content, now, existing.id);
-      return this.getDaily(userId, reportDate)!;
-    }
-
-    this.database
-      .prepare(
-        `
-          insert into daily_reports (user_id, report_date, content, generator_type, created_at, updated_at)
-          values (?, ?, ?, 'RULE_BASED', ?, ?)
-        `,
-      )
+    this.db
+      .prepare(`
+        insert into daily_reports (user_id, report_date, content, generator_type, created_at, updated_at)
+        values (?, ?, ?, 'RULE_BASED', ?, ?)
+        on conflict(user_id, report_date) do update set content = excluded.content, updated_at = excluded.updated_at
+      `)
       .run(userId, reportDate, content, now, now);
-
     return this.getDaily(userId, reportDate)!;
   }
 
   getWeekly(userId: number, weekStartDate: string): WeeklyReview | undefined {
-    const row = this.database
-      .prepare(
-        `
-          select id, user_id, week_start_date, week_end_date, content, generator_type, created_at, updated_at
-          from weekly_reviews
-          where user_id = ? and week_start_date = ?
-        `,
-      )
-      .get(userId, weekStartDate) as WeeklyReviewRow | undefined;
-
+    const row = this.db.prepare('select * from weekly_reviews where user_id = ? and week_start_date = ?').get(userId, weekStartDate) as WeeklyReviewRow | undefined;
     return row ? mapWeeklyReviewRow(row) : undefined;
   }
 
   saveWeekly(userId: number, weekStartDate: string, weekEndDate: string, content: string): WeeklyReview {
     const now = new Date().toISOString();
-    const existing = this.getWeekly(userId, weekStartDate);
-    if (existing) {
-      this.database
-        .prepare('update weekly_reviews set week_end_date = ?, content = ?, updated_at = ? where id = ?')
-        .run(weekEndDate, content, now, existing.id);
-      return this.getWeekly(userId, weekStartDate)!;
-    }
-
-    this.database
-      .prepare(
-        `
-          insert into weekly_reviews (user_id, week_start_date, week_end_date, content, generator_type, created_at, updated_at)
-          values (?, ?, ?, ?, 'RULE_BASED', ?, ?)
-        `,
-      )
+    this.db
+      .prepare(`
+        insert into weekly_reviews (user_id, week_start_date, week_end_date, content, generator_type, created_at, updated_at)
+        values (?, ?, ?, ?, 'RULE_BASED', ?, ?)
+        on conflict(user_id, week_start_date) do update set
+          week_end_date = excluded.week_end_date,
+          content = excluded.content,
+          updated_at = excluded.updated_at
+      `)
       .run(userId, weekStartDate, weekEndDate, content, now, now);
-
     return this.getWeekly(userId, weekStartDate)!;
   }
 }
 ```
 
-- [ ] **Step 4: Run report repository tests**
+- [ ] **Step 7: 运行 Focus 和 Report 测试**
 
 Run:
 
 ```bash
-npm test -- server/storage/sqlite/repositories/reportSqliteRepository.test.ts
+npm test -- server/storage/sqlite/repositories/focusSessionSqliteRepository.test.ts server/storage/sqlite/repositories/reportSqliteRepository.test.ts
 ```
 
-Expected: PASS.
+Expected: PASS。
 
-- [ ] **Step 5: Commit Task 7**
+- [ ] **Step 8: 提交 Focus 和 Report repositories**
+
+Run:
 
 ```bash
-git add server/storage/sqlite/repositories/reportSqliteRepository.ts server/storage/sqlite/repositories/reportSqliteRepository.test.ts
-git commit -m "feat: add sqlite report repository"
+git add server/storage/sqlite/repositories/focusSessionSqliteRepository.ts server/storage/sqlite/repositories/focusSessionSqliteRepository.test.ts server/storage/sqlite/repositories/reportSqliteRepository.ts server/storage/sqlite/repositories/reportSqliteRepository.test.ts
+git commit -m "feat: add sqlite focus and report repositories"
 ```
 
 ---
 
-## Task 8: Wire SQLite Driver Into Runtime
+## Task 6: Repository factory 和后端装配
 
 **Files:**
-- Modify: `server/storage/createRepositories.ts`
-- Modify: `server/app/registerRoutes.ts`
+- Create: `server/storage/createRepositories.ts`
 - Test: `server/storage/createRepositories.test.ts`
+- Modify: `server/app/registerRoutes.ts`
+- Modify: `.env.example`
 
-- [ ] **Step 1: Extend factory tests for SQLite driver**
+- [ ] **Step 1: 写 repository factory 失败测试**
 
-Modify `server/storage/createRepositories.test.ts` to add:
+Create `server/storage/createRepositories.test.ts`:
 
 ```ts
-it('creates SQLite repositories when STORAGE_DRIVER is sqlite', () => {
-  process.env.STORAGE_DRIVER = 'sqlite';
-  process.env.SQLITE_DB_PATH = ':memory:';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 
-  const repositories = createRepositoriesFromEnv();
+import {createRepositoriesFromEnv} from './createRepositories';
+import {createTestSqliteFile, type TestSqliteFile} from './sqlite/testSqlite';
 
-  expect(repositories.driver).toBe('sqlite');
-  expect(repositories.categories.constructor.name).toBe('CategorySqliteRepository');
-  expect(repositories.tasks.constructor.name).toBe('TaskSqliteRepository');
-  expect(repositories.focusSessions.constructor.name).toBe('FocusSessionSqliteRepository');
-  expect(repositories.reports.constructor.name).toBe('ReportSqliteRepository');
+let sqliteFile: TestSqliteFile | undefined;
+let jsonFile: TestSqliteFile | undefined;
+
+afterEach(() => {
+  sqliteFile?.cleanup();
+  jsonFile?.cleanup();
+  sqliteFile = undefined;
+  jsonFile = undefined;
+  vi.unstubAllEnvs();
+});
+
+describe('createRepositoriesFromEnv', () => {
+  it('defaults to json repositories', () => {
+    jsonFile = createTestSqliteFile('plantode-json-factory');
+    vi.stubEnv('JSON_DB_PATH', jsonFile.filePath);
+
+    const repositories = createRepositoriesFromEnv();
+
+    expect(repositories.categories.constructor.name).toBe('CategoryJsonRepository');
+    expect(repositories.tasks.constructor.name).toBe('TaskJsonRepository');
+    expect(repositories.focusSessions.constructor.name).toBe('FocusSessionJsonRepository');
+    expect(repositories.reports.constructor.name).toBe('ReportJsonRepository');
+  });
+
+  it('creates sqlite repositories when STORAGE_DRIVER is sqlite', () => {
+    sqliteFile = createTestSqliteFile('plantode-repository-factory');
+    vi.stubEnv('STORAGE_DRIVER', 'sqlite');
+    vi.stubEnv('SQLITE_DB_PATH', sqliteFile.filePath);
+
+    const repositories = createRepositoriesFromEnv();
+
+    expect(repositories.categories.constructor.name).toBe('CategorySqliteRepository');
+    expect(repositories.tasks.constructor.name).toBe('TaskSqliteRepository');
+    expect(repositories.focusSessions.constructor.name).toBe('FocusSessionSqliteRepository');
+    expect(repositories.reports.constructor.name).toBe('ReportSqliteRepository');
+  });
+
+  it('rejects unknown storage drivers', () => {
+    vi.stubEnv('STORAGE_DRIVER', 'postgres');
+
+    expect(() => createRepositoriesFromEnv()).toThrow('Unsupported STORAGE_DRIVER "postgres"');
+  });
 });
 ```
 
-- [ ] **Step 2: Run factory tests and verify SQLite case fails**
+- [ ] **Step 2: 运行 factory 测试确认失败**
 
 Run:
 
@@ -1438,60 +1241,81 @@ Run:
 npm test -- server/storage/createRepositories.test.ts
 ```
 
-Expected: FAIL with `SQLite storage is not implemented yet.`
+Expected: FAIL，提示找不到 `./createRepositories`。
 
-- [ ] **Step 3: Implement SQLite factory branch**
+- [ ] **Step 3: 实现 repository factory**
 
-Modify `server/storage/createRepositories.ts`:
+Create `server/storage/createRepositories.ts`:
 
 ```ts
+import path from 'node:path';
+
+import type {CategoryRepository} from '../modules/categories/repository';
+import type {FocusSessionRepository} from '../modules/focus/repository';
+import type {ReportRepository} from '../modules/reports/repository';
+import type {TaskRepository} from '../modules/tasks/repository';
+import {CategoryJsonRepository} from './json/repositories/categoryJsonRepository';
+import {FocusSessionJsonRepository} from './json/repositories/focusSessionJsonRepository';
+import {JsonFileStore} from './json/fileStore';
+import {ReportJsonRepository} from './json/repositories/reportJsonRepository';
+import {TaskJsonRepository} from './json/repositories/taskJsonRepository';
 import {openSqliteClient} from './sqlite/sqliteClient';
 import {CategorySqliteRepository} from './sqlite/repositories/categorySqliteRepository';
 import {FocusSessionSqliteRepository} from './sqlite/repositories/focusSessionSqliteRepository';
 import {ReportSqliteRepository} from './sqlite/repositories/reportSqliteRepository';
 import {TaskSqliteRepository} from './sqlite/repositories/taskSqliteRepository';
-```
 
-Add:
+export interface AppRepositories {
+  categories: CategoryRepository;
+  tasks: TaskRepository;
+  focusSessions: FocusSessionRepository;
+  reports: ReportRepository;
+}
 
-```ts
-function createSqliteRepositories(filePath: string): AppRepositories {
-  const database = openSqliteClient(filePath);
+export function createRepositoriesFromEnv(env: NodeJS.ProcessEnv = process.env): AppRepositories {
+  const driver = env.STORAGE_DRIVER ?? 'json';
 
-  return {
-    driver: 'sqlite',
-    categories: new CategorySqliteRepository(database),
-    tasks: new TaskSqliteRepository(database),
-    focusSessions: new FocusSessionSqliteRepository(database),
-    reports: new ReportSqliteRepository(database),
-  };
+  if (driver === 'json') {
+    const store = new JsonFileStore(path.resolve(env.JSON_DB_PATH ?? 'data/db.json'));
+    return {
+      categories: new CategoryJsonRepository(store),
+      tasks: new TaskJsonRepository(store),
+      focusSessions: new FocusSessionJsonRepository(store),
+      reports: new ReportJsonRepository(store),
+    };
+  }
+
+  if (driver === 'sqlite') {
+    const db = openSqliteClient(path.resolve(env.SQLITE_DB_PATH ?? 'data/plantode.sqlite'));
+    return {
+      categories: new CategorySqliteRepository(db),
+      tasks: new TaskSqliteRepository(db),
+      focusSessions: new FocusSessionSqliteRepository(db),
+      reports: new ReportSqliteRepository(db),
+    };
+  }
+
+  throw new Error(`Unsupported STORAGE_DRIVER "${driver}"`);
 }
 ```
 
-Replace the SQLite branch:
+- [ ] **Step 4: 修改 registerRoutes 装配**
+
+Modify `server/app/registerRoutes.ts` to remove direct JSON construction and use factory:
 
 ```ts
-return createSqliteRepositories(path.resolve(env.SQLITE_DB_PATH ?? 'data/plantode.sqlite'));
-```
+import {Router} from 'express';
 
-For `:memory:`, use:
-
-```ts
-const sqlitePath = env.SQLITE_DB_PATH ?? 'data/plantode.sqlite';
-return createSqliteRepositories(sqlitePath === ':memory:' ? sqlitePath : path.resolve(sqlitePath));
-```
-
-- [ ] **Step 4: Modify route registration**
-
-Modify `server/app/registerRoutes.ts` to replace direct JSON construction with factory usage:
-
-```ts
+import {buildCategoryRoutes} from '../modules/categories/routes';
+import {CategoriesService} from '../modules/categories/service';
+import {buildFocusRoutes} from '../modules/focus/routes';
+import {FocusService} from '../modules/focus/service';
+import {buildReportRoutes} from '../modules/reports/routes';
+import {ReportsService} from '../modules/reports/service';
+import {buildTaskRoutes} from '../modules/tasks/routes';
+import {TasksService} from '../modules/tasks/service';
 import {createRepositoriesFromEnv} from '../storage/createRepositories';
-```
 
-Then:
-
-```ts
 export function registerRoutes(): Router {
   const router = Router();
   const repositories = createRepositoriesFromEnv();
@@ -1515,126 +1339,106 @@ export function registerRoutes(): Router {
 }
 ```
 
-Remove JSON-specific imports from `registerRoutes.ts`.
+- [ ] **Step 5: 更新环境变量示例**
 
-- [ ] **Step 5: Run focused and full verification**
+Modify `.env.example`:
+
+```txt
+GEMINI_API_KEY=
+STORAGE_DRIVER=json
+JSON_DB_PATH=data/db.json
+SQLITE_DB_PATH=data/plantode.sqlite
+```
+
+- [ ] **Step 6: 运行 factory 测试和类型检查**
 
 Run:
 
 ```bash
 npm test -- server/storage/createRepositories.test.ts
 npm run lint
-npm test
-npm run build
 ```
 
-Expected: all PASS.
+Expected: PASS。
 
-- [ ] **Step 6: Commit Task 8**
+- [ ] **Step 7: 提交装配层**
+
+Run:
 
 ```bash
-git add server/storage/createRepositories.ts server/storage/createRepositories.test.ts server/app/registerRoutes.ts
-git commit -m "feat: wire sqlite storage driver"
+git add server/storage/createRepositories.ts server/storage/createRepositories.test.ts server/app/registerRoutes.ts .env.example
+git commit -m "feat: switch storage driver by environment"
 ```
 
 ---
 
-## Task 9: Document Storage Configuration
+## Task 7: 文档和全量验证
 
 **Files:**
-- Modify: `.env.example`
 - Modify: `README.md`
-- Modify: `package.json`
 
-- [ ] **Step 1: Update `.env.example`**
+- [ ] **Step 1: 更新 README 存储说明**
 
-Append:
+Modify `README.md` to include:
 
-```txt
-# Storage driver: json or sqlite
+````md
+## 存储驱动
+
+默认使用 JSON 文件存储：
+
+```bash
 STORAGE_DRIVER=json
 JSON_DB_PATH=data/db.json
+```
+
+也可以切换到 SQLite：
+
+```bash
+STORAGE_DRIVER=sqlite
 SQLITE_DB_PATH=data/plantode.sqlite
 ```
 
-- [ ] **Step 2: Add helper script**
-
-Modify `package.json` scripts:
-
-```json
-"dev:sqlite": "STORAGE_DRIVER=sqlite SQLITE_DB_PATH=data/plantode.sqlite tsx server.ts"
+SQLite 使用 `better-sqlite3`，启动时会自动执行 schema migration。当前不包含 JSON 到 SQLite 的数据导入；历史数据迁移会作为独立工具处理。
 ```
+````
 
-- [ ] **Step 3: Update README storage section**
+- [ ] **Step 2: 运行全量测试**
 
-Add:
-
-```md
-## Storage Modes
-
-PlanTode supports two local storage drivers:
-
-- `json`: stores data in `data/db.json`
-- `sqlite`: stores data in `data/plantode.sqlite`
-
-JSON is the default:
+Run:
 
 ```bash
-npm run dev
+npm test
 ```
 
-SQLite can be enabled with:
+Expected: 现有测试和新增 SQLite 测试全部 PASS。
 
-```bash
-npm run dev:sqlite
-```
-
-Or manually:
-
-```bash
-STORAGE_DRIVER=sqlite SQLITE_DB_PATH=data/plantode.sqlite npm run dev
-```
-
-The SQLite driver creates its schema automatically on startup. JSON-to-SQLite data import is not part of this release.
-```
-
-- [ ] **Step 4: Run verification**
+- [ ] **Step 3: 运行类型检查**
 
 Run:
 
 ```bash
 npm run lint
-npm test
-npm run build
 ```
 
-Expected: all PASS.
+Expected: PASS。
 
-- [ ] **Step 5: Commit Task 9**
-
-```bash
-git add .env.example README.md package.json package-lock.json
-git commit -m "docs: document sqlite storage mode"
-```
-
----
-
-## Task 10: Manual SQLite Runtime Verification
-
-**Files:**
-- No source edits expected.
-
-- [ ] **Step 1: Start server with SQLite**
+- [ ] **Step 4: 运行构建**
 
 Run:
 
 ```bash
-STORAGE_DRIVER=sqlite SQLITE_DB_PATH=data/test-plantode.sqlite npm run dev
+npm run build
 ```
 
-Expected: server logs `Running on http://127.0.0.1:3000`.
+Expected: PASS。
 
-- [ ] **Step 2: Verify basic API endpoints**
+- [ ] **Step 5: 手动验证 SQLite driver 基础 API**
+
+Run server:
+
+```bash
+STORAGE_DRIVER=sqlite SQLITE_DB_PATH=data/test-plantode.sqlite npm run dev
+```
 
 In another shell:
 
@@ -1652,11 +1456,9 @@ Expected:
 {"session":null}
 ```
 
-- [ ] **Step 3: Stop the dev server**
+Stop the dev server after verification.
 
-Press `Ctrl-C`.
-
-- [ ] **Step 4: Remove manual test database**
+- [ ] **Step 6: Remove manual verification database**
 
 Run:
 
@@ -1664,9 +1466,22 @@ Run:
 rm -f data/test-plantode.sqlite
 ```
 
-- [ ] **Step 5: Final full verification**
+Expected: no generated SQLite test database remains in the worktree.
+
+- [ ] **Step 7: 提交文档和验证收尾**
 
 Run:
+
+```bash
+git add README.md
+git commit -m "docs: document storage drivers"
+```
+
+---
+
+## Final Verification Checklist
+
+Before declaring implementation complete, run:
 
 ```bash
 npm run lint
@@ -1674,15 +1489,22 @@ npm test
 npm run build
 ```
 
-Expected: all PASS.
+Expected:
 
-- [ ] **Step 6: Commit runtime verification note if files changed**
+- TypeScript has 0 errors.
+- Vitest reports all test files passed.
+- Vite production build exits 0.
 
-Run:
+Then confirm:
 
 ```bash
 git status --short
 ```
 
-Expected: clean. If only runtime database files appear, remove them instead of committing them.
+Expected:
 
+```txt
+
+```
+
+No generated SQLite database files should be tracked or left untracked.
