@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { registerRoutes } from './server/app/registerRoutes';
 import { apiRouter } from './server/routes';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,6 +14,7 @@ async function bootstrap() {
   app.use(express.json());
 
   // Mount API router
+  app.use('/api', registerRoutes());
   app.use('/api', apiRouter);
 
   // Serve static files based on environment
