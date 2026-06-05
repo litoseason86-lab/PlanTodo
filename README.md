@@ -1,20 +1,30 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# PlanTode
 
-# Run and deploy your AI Studio app
+PlanTode 是一个本地单用户计划管理工具，当前采用 `React + Express + JSON 文件存储`。
 
-This contains everything you need to run your app locally.
+## 开发命令
 
-View your app in AI Studio: https://ai.studio/apps/bf74e38c-d8f4-4b23-96f1-f1df348271ca
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
+1. 安装依赖：
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. 启动开发环境：
    `npm run dev`
+3. 运行测试：
+   `npm test`
+4. 执行类型检查：
+   `npm run lint`
+5. 构建生产产物：
+   `npm run build`
+
+## 当前目录结构
+
+- `shared/`：前后端共享领域模型与基础工具
+- `server/app/`：服务装配与启动
+- `server/modules/`：后端业务模块
+- `server/storage/`：JSON 文件存储实现
+- `src/app/`：前端应用入口与装配
+- `src/modules/`：前端业务模块
+- `src/shared/`：前端共享请求层与通用能力
+
+## 持久化说明
+
+当前默认持久化方案为 `data/db.json`。重构后业务逻辑通过仓储接口访问数据，不再直接依赖底层 JSON 结构。
