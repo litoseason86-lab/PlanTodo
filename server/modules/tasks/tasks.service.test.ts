@@ -133,29 +133,43 @@ describe('TasksService', () => {
     })).toThrow('Timed task requires startAt and endAt');
   });
 
-  it('rejects cross-day timed schedules', () => {
+  it('accepts cross-day timed schedules', () => {
     const task = {id: 1, userId: 1, categoryId: 1, title: '写方案', plannedDate: '2026-06-06', allDay: true, status: 'TODO', createdAt: '', updatedAt: ''} as const;
+    let savedSchedule: unknown;
     const service = new TasksService(
       {
         listByFilters: () => [],
         getById: () => task,
         create: () => task,
         updateStatus: () => task,
-        updateSchedule: () => task,
+        updateSchedule: (input) => {
+          savedSchedule = input;
+          return {...task, ...input, allDay: false};
+        },
         remove: () => false,
       },
       {getById: () => ({id: 1, userId: 1, name: '工作', color: '#000', sortOrder: 1, createdAt: '', updatedAt: ''})},
       {getRunningByUser: () => undefined, stop: () => undefined},
     );
 
-    expect(() => service.updateSchedule({
+    expect(service.updateSchedule({
       taskId: 1,
       userId: 1,
       plannedDate: '2026-06-06',
       startAt: '2026-06-06T23:30:00.000',
       endAt: '2026-06-07T00:30:00.000',
       allDay: false,
-    })).toThrow('Cross-day timed tasks are not supported yet');
+    })).toMatchObject({
+      startAt: '2026-06-06T23:30:00.000',
+      endAt: '2026-06-07T00:30:00.000',
+      allDay: false,
+    });
+    expect(savedSchedule).toMatchObject({
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T23:30:00.000',
+      endAt: '2026-06-07T00:30:00.000',
+      allDay: false,
+    });
   });
 
   it('rejects timed schedules whose date differs from plannedDate', () => {

@@ -1,6 +1,7 @@
 import {useMemo} from 'react';
 
 import type {Category, Task, TaskExecutionSession} from '../../../../shared/domain/entities';
+import {isCountedFocusSession, sumCountedFocusSessionSeconds} from '../../../../shared/lib/focusSessions';
 
 interface DailyReportMetricsArgs {
   categories: Category[];
@@ -17,13 +18,9 @@ export function buildDailyReportMetrics({
   dailySessions,
   prevDailySessions,
 }: DailyReportMetricsArgs) {
-  const totalDailyCompletedSeconds = dailySessions
-    .filter((session) => session.status === 'COMPLETED')
-    .reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0);
+  const totalDailyCompletedSeconds = sumCountedFocusSessionSeconds(dailySessions);
 
-  const totalPrevDailyCompletedSeconds = prevDailySessions
-    .filter((session) => session.status === 'COMPLETED')
-    .reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0);
+  const totalPrevDailyCompletedSeconds = sumCountedFocusSessionSeconds(prevDailySessions);
 
   const dailyTotalMinutes = Math.round(totalDailyCompletedSeconds / 60);
   const prevDailyTotalMinutes = Math.round(totalPrevDailyCompletedSeconds / 60);
@@ -47,12 +44,10 @@ export function buildDailyReportMetrics({
           dailyTasks.find((currentTask) => currentTask.id === session.taskId) ??
           allTasks.find((currentTask) => currentTask.id === session.taskId);
 
-        return task && task.categoryId === category.id && session.status === 'COMPLETED';
+        return task && task.categoryId === category.id && isCountedFocusSession(session);
       });
 
-      const minutes = Math.round(
-        categorySessions.reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0) / 60,
-      );
+      const minutes = Math.round(sumCountedFocusSessionSeconds(categorySessions) / 60);
 
       return {
         name: category.name,

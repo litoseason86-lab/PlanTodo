@@ -71,6 +71,16 @@ describe('ReportsService', () => {
             status: 'COMPLETED' as const,
             createdAt: '',
           },
+          {
+            id: 2,
+            taskId: 1,
+            userId: 1,
+            startedAt: '2026-06-05T01:00:00.000Z',
+            endedAt: '2026-06-05T01:04:59.000Z',
+            durationSeconds: 299,
+            status: 'COMPLETED' as const,
+            createdAt: '',
+          },
         ]),
       },
     );
@@ -78,6 +88,9 @@ describe('ReportsService', () => {
     const report = service.generateDaily(1, '2026-06-05');
 
     expect(report.content).toContain('每日执行状态报告');
+    expect(report.content).toContain('今日累计专注时间**： 0小时 30分钟');
+    expect(report.content).toContain('累计专注于其 30 分钟');
+    expect(report.content).not.toContain('34分钟');
     expect(saveDaily).toHaveBeenCalledOnce();
   });
 

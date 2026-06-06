@@ -116,6 +116,36 @@ describe('useCalendarController', () => {
     });
   });
 
+  it('moves a timed task across midnight while preserving duration', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.updateTaskSchedule).mockResolvedValue({id: 1} as never);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.moveTimedTask({
+        taskId: 1,
+        date: '2026-06-06',
+        hour: 23,
+        minute: 0,
+        durationMinutes: 180,
+      });
+    });
+
+    expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, {
+      plannedDate: '2026-06-06',
+      plannedEndDate: undefined,
+      startAt: '2026-06-06T23:00:00.000',
+      endAt: '2026-06-07T02:00:00.000',
+      allDay: false,
+    });
+  });
+
   it('resizes a timed task duration', async () => {
     vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
     vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
@@ -213,10 +243,11 @@ describe('useCalendarController', () => {
     expect(showToast).toHaveBeenCalledWith('排期失败', 'error');
   });
 
-  it('shows an error toast when time schedule calculation fails', async () => {
+  it('schedules a default task across midnight', async () => {
     const showToast = vi.fn();
     vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
     vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.updateTaskSchedule).mockResolvedValue({id: 1} as never);
 
     const {result} = renderHook(() => useCalendarController({
       categories: [],
@@ -228,8 +259,14 @@ describe('useCalendarController', () => {
       await result.current.scheduleTaskAtTime({taskId: 1, date: '2026-06-06', hour: 23, minute: 30});
     });
 
-    expect(calendarApi.updateTaskSchedule).not.toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith('Local datetime addition crossed day boundary', 'error');
+    expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, {
+      plannedDate: '2026-06-06',
+      plannedEndDate: undefined,
+      startAt: '2026-06-06T23:30:00.000',
+      endAt: '2026-06-07T00:30:00.000',
+      allDay: false,
+    });
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   it('shows an error toast when schedule update fails', async () => {

@@ -194,7 +194,7 @@ describe('CalendarPanel', () => {
       />,
     );
 
-    const task = await screen.findByText('09:00 时间段任务');
+    const task = await screen.findByText('09:00-10:30 时间段任务');
     const target = screen.getByLabelText('2026-06-07 14:00');
     const data = createDragData();
 
@@ -207,6 +207,119 @@ describe('CalendarPanel', () => {
       endAt: '2026-06-07T15:30:00.000',
       allDay: false,
     }));
+  });
+
+  it('renders a same-day timed task as one continuous block', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        categoryId: 1,
+        title: '数学',
+        plannedDate: '2026-06-06',
+        allDay: false,
+        startAt: '2026-06-06T13:00:00.000',
+        endAt: '2026-06-06T15:30:00.000',
+        status: 'TODO',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+
+    render(
+      <CalendarPanel
+        categories={[{id: 1, userId: 1, name: '学习', color: '#3b82f6', sortOrder: 1, createdAt: '', updatedAt: ''}]}
+        styleContext={{primary: '#fb7185', primaryLight: '#ffe4e6', secondary: '#fda4af'}}
+        showToast={vi.fn()}
+        initialDate="2026-06-06"
+      />,
+    );
+
+    expect(await screen.findByText('13:00-15:30 数学')).toBeInTheDocument();
+    expect(screen.queryByText('13:00-14:00 数学')).not.toBeInTheDocument();
+    expect(screen.queryByText('14:00-15:00 数学')).not.toBeInTheDocument();
+    expect(screen.queryByText('15:00-15:30 数学')).not.toBeInTheDocument();
+  });
+
+  it('renders a cross-day timed task as one segment per visible date', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        categoryId: 1,
+        title: '夜间学习',
+        plannedDate: '2026-06-06',
+        allDay: false,
+        startAt: '2026-06-06T23:00:00.000',
+        endAt: '2026-06-07T02:00:00.000',
+        status: 'TODO',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+
+    render(
+      <CalendarPanel
+        categories={[{id: 1, userId: 1, name: '学习', color: '#3b82f6', sortOrder: 1, createdAt: '', updatedAt: ''}]}
+        styleContext={{primary: '#fb7185', primaryLight: '#ffe4e6', secondary: '#fda4af'}}
+        showToast={vi.fn()}
+        initialDate="2026-06-06"
+      />,
+    );
+
+    expect(await screen.findByText('23:00-24:00 夜间学习')).toBeInTheDocument();
+    expect(await screen.findByText('00:00-02:00 夜间学习')).toBeInTheDocument();
+    expect(screen.queryByText('00:00-01:00 夜间学习')).not.toBeInTheDocument();
+    expect(screen.queryByText('01:00-02:00 夜间学习')).not.toBeInTheDocument();
+  });
+
+  it('renders overlapping timed tasks side by side', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        categoryId: 1,
+        title: '数学',
+        plannedDate: '2026-06-06',
+        allDay: false,
+        startAt: '2026-06-06T13:00:00.000',
+        endAt: '2026-06-06T14:00:00.000',
+        status: 'TODO',
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 2,
+        userId: 1,
+        categoryId: 1,
+        title: '英语',
+        plannedDate: '2026-06-06',
+        allDay: false,
+        startAt: '2026-06-06T13:30:00.000',
+        endAt: '2026-06-06T14:30:00.000',
+        status: 'TODO',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+
+    render(
+      <CalendarPanel
+        categories={[{id: 1, userId: 1, name: '学习', color: '#3b82f6', sortOrder: 1, createdAt: '', updatedAt: ''}]}
+        styleContext={{primary: '#fb7185', primaryLight: '#ffe4e6', secondary: '#fda4af'}}
+        showToast={vi.fn()}
+        initialDate="2026-06-06"
+      />,
+    );
+
+    const math = await screen.findByText('13:00-14:00 数学');
+    const english = await screen.findByText('13:30-14:30 英语');
+
+    expect(math.parentElement).toHaveStyle({width: '50%'});
+    expect(english.parentElement).toHaveStyle({width: '50%'});
   });
 
   it('drags a timed task resize handle', async () => {
@@ -237,7 +350,7 @@ describe('CalendarPanel', () => {
       />,
     );
 
-    await screen.findByText('09:00 时间段任务');
+    await screen.findByText('09:00-10:00 时间段任务');
     const handle = screen.getByLabelText('调整时间段任务时长');
     act(() => {
       handle.dispatchEvent(new MouseEvent('pointerdown', {bubbles: true, clientY: 0}));
@@ -255,8 +368,22 @@ describe('CalendarPanel', () => {
     }));
   });
 
-  it('renders focus records when enabled', async () => {
-    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+  it('renders counted focus time inside the matching task block', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        categoryId: 1,
+        title: '写方案',
+        plannedDate: '2026-06-06',
+        allDay: false,
+        startAt: '2026-06-06T17:00:00.000',
+        endAt: '2026-06-06T18:00:00.000',
+        status: 'TODO',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
     vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([
       {
         id: 1,
@@ -267,6 +394,16 @@ describe('CalendarPanel', () => {
         status: 'COMPLETED',
         createdAt: '',
         taskTitle: '写方案',
+      },
+      {
+        id: 2,
+        taskId: 1,
+        userId: 1,
+        startedAt: '2026-06-06T02:00:00.000Z',
+        durationSeconds: 120,
+        status: 'COMPLETED',
+        createdAt: '',
+        taskTitle: '数学',
       },
     ]);
 
@@ -279,7 +416,10 @@ describe('CalendarPanel', () => {
       />,
     );
 
-    expect(await screen.findByText('专注 45m')).toBeInTheDocument();
+    const task = await screen.findByLabelText('2026-06-06 17:00-18:00 写方案，专注 45m');
+    expect(task).toHaveTextContent('写方案');
+    expect(task).toHaveTextContent('专注 45m');
+    expect(screen.queryByText('专注 2m')).not.toBeInTheDocument();
   });
 
   it('renders focus records in list view', async () => {
@@ -291,6 +431,15 @@ describe('CalendarPanel', () => {
         userId: 1,
         startedAt: '2026-06-06T01:00:00.000Z',
         durationSeconds: 1800,
+        status: 'COMPLETED',
+        createdAt: '',
+      },
+      {
+        id: 2,
+        taskId: 1,
+        userId: 1,
+        startedAt: '2026-06-06T02:00:00.000Z',
+        durationSeconds: 240,
         status: 'COMPLETED',
         createdAt: '',
       },
@@ -308,10 +457,25 @@ describe('CalendarPanel', () => {
     fireEvent.click(screen.getByRole('button', {name: '列表'}));
 
     expect(await screen.findByText('专注 30m')).toBeInTheDocument();
+    expect(screen.queryByText('专注 4m')).not.toBeInTheDocument();
   });
 
   it('hides focus records when focus display is disabled', async () => {
-    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        categoryId: 1,
+        title: '写方案',
+        plannedDate: '2026-06-06',
+        allDay: false,
+        startAt: '2026-06-06T09:00:00.000',
+        endAt: '2026-06-06T10:00:00.000',
+        status: 'TODO',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
     vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([
       {
         id: 1,

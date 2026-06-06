@@ -65,9 +65,20 @@ describe('schedule helpers', () => {
     expect(addMinutesToLocalDateTime('2026-06-06T09:30:00.000', 60)).toBe('2026-06-06T10:30:00.000');
   });
 
-  it('rejects local datetime additions that cross the day boundary', () => {
-    expect(() => addMinutesToLocalDateTime('2026-06-06T23:30:00.000', 60)).toThrow(
-      'Local datetime addition crossed day boundary',
-    );
+  it('adds local datetime minutes across day boundaries', () => {
+    expect(addMinutesToLocalDateTime('2026-06-06T23:30:00.000', 60)).toBe('2026-06-07T00:30:00.000');
+  });
+
+  it('detects cross-day timed tasks intersecting both calendar days', () => {
+    const task = toCanonicalTask({
+      ...baseTask,
+      allDay: false,
+      startAt: '2026-06-06T23:00:00.000',
+      endAt: '2026-06-07T02:00:00.000',
+    });
+
+    expect(taskIntersectsDateRange(task, '2026-06-06', '2026-06-06')).toBe(true);
+    expect(taskIntersectsDateRange(task, '2026-06-07', '2026-06-07')).toBe(true);
+    expect(taskIntersectsDateRange(task, '2026-06-08', '2026-06-08')).toBe(false);
   });
 });

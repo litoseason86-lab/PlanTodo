@@ -5,6 +5,7 @@ import type {TaskRepository} from '../tasks/repository';
 import {AppError} from '../../shared/errors/appError';
 import {renderDailyReport, renderWeeklyReview} from './generators';
 import {addIsoDateDays, getChinaDateUtcRange} from '../../../shared/lib/date';
+import {focusSessionDurationSeconds, isCountedFocusSession} from '../../../shared/lib/focusSessions';
 
 export class ReportsService {
   constructor(
@@ -28,7 +29,7 @@ export class ReportsService {
     const {startAt, endAt} = getChinaDateUtcRange(date);
     const sessions = this.sessions
       .listByDateRange(userId, startAt, endAt)
-      .filter((session) => session.status === 'COMPLETED');
+      .filter(isCountedFocusSession);
 
     const doneCount = tasks.filter((task) => task.status === 'DONE').length;
     const notDoneCount = tasks.length - doneCount;
@@ -36,7 +37,7 @@ export class ReportsService {
 
     let totalSeconds = 0;
     for (const session of sessions) {
-      const duration = session.durationSeconds ?? 0;
+      const duration = focusSessionDurationSeconds(session);
       totalSeconds += duration;
       const task = tasks.find((item) => item.id === session.taskId) ?? this.tasks.getById(session.taskId, userId);
       if (!task) {
@@ -125,10 +126,10 @@ export class ReportsService {
       const {startAt, endAt} = getChinaDateUtcRange(date);
       const sessions = this.sessions
         .listByDateRange(userId, startAt, endAt)
-        .filter((session) => session.status === 'COMPLETED');
+        .filter(isCountedFocusSession);
 
       for (const session of sessions) {
-        const duration = session.durationSeconds ?? 0;
+        const duration = focusSessionDurationSeconds(session);
         totalSeconds += duration;
         const task = this.tasks.getById(session.taskId, userId);
         if (!task) {

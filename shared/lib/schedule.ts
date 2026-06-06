@@ -36,12 +36,10 @@ export function addMinutesToLocalDateTime(value: string, minutes: number): strin
   const hour = Number(value.slice(11, 13));
   const minute = Number(value.slice(14, 16));
   const totalMinutes = hour * 60 + minute + minutes;
+  const dayOffset = Math.floor(totalMinutes / (24 * 60));
+  const minutesInDay = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60);
 
-  if (totalMinutes < 0 || totalMinutes >= 24 * 60) {
-    throw new Error('Local datetime addition crossed day boundary');
-  }
-
-  return makeLocalDateTime(date, Math.floor(totalMinutes / 60), totalMinutes % 60);
+  return makeLocalDateTime(addIsoDateDays(date, dayOffset), Math.floor(minutesInDay / 60), minutesInDay % 60);
 }
 
 export function getLocalDateFromDateTime(value: string): string {

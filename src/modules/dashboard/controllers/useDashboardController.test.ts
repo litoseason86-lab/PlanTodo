@@ -67,6 +67,15 @@ const sessions = [
     status: 'COMPLETED' as const,
     createdAt: '',
   },
+  {
+    id: 3,
+    taskId: 1,
+    userId: 1,
+    startedAt: '',
+    durationSeconds: 299,
+    status: 'COMPLETED' as const,
+    createdAt: '',
+  },
 ];
 
 describe('useDashboardController helpers', () => {
@@ -100,5 +109,35 @@ describe('useDashboardController helpers', () => {
       {name: '工作', minutes: 20, color: '#ef4444'},
       {name: '学习', minutes: 30, color: '#3b82f6'},
     ]);
+  });
+
+  it('excludes completed focus sessions shorter than five minutes from statistics', () => {
+    expect(
+      getTaskFocusMinutes({
+        taskId: 1,
+        selectedDateSessions: [
+          {
+            id: 4,
+            taskId: 1,
+            userId: 1,
+            startedAt: '',
+            durationSeconds: 299,
+            status: 'COMPLETED',
+            createdAt: '',
+          },
+          {
+            id: 5,
+            taskId: 1,
+            userId: 1,
+            startedAt: '',
+            durationSeconds: 300,
+            status: 'COMPLETED',
+            createdAt: '',
+          },
+        ],
+        runningSession: null,
+        focusTimeElapsed: 0,
+      }),
+    ).toBe(5);
   });
 });

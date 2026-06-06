@@ -29,6 +29,16 @@ const weeklyDay = {
       status: 'COMPLETED' as const,
       createdAt: '',
     },
+    {
+      id: 2,
+      taskId: 1,
+      userId: 1,
+      startedAt: '2026-06-01T02:00:00.000Z',
+      endedAt: '2026-06-01T02:04:00.000Z',
+      durationSeconds: 240,
+      status: 'COMPLETED' as const,
+      createdAt: '',
+    },
   ],
 };
 
@@ -58,5 +68,7 @@ describe('WeeklyReviewPanel', () => {
     expect(screen.getByText('周度效率复盘看板')).toBeInTheDocument();
     expect(screen.getByText('90 分钟')).toBeInTheDocument();
     expect(screen.getByText('2 日')).toBeInTheDocument();
+    expect(screen.getByText('30m')).toBeInTheDocument();
+    expect(screen.queryByText('34m')).not.toBeInTheDocument();
   });
 });

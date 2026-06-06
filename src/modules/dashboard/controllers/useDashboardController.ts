@@ -1,6 +1,11 @@
 import {useCallback, useMemo} from 'react';
 
 import type {Category, Task, TaskExecutionSession} from '../../../../shared/domain/entities';
+import {
+  focusSessionDurationSeconds,
+  isCountedFocusSession,
+  sumCountedFocusSessionSeconds,
+} from '../../../../shared/lib/focusSessions';
 
 interface TaskFocusArgs {
   taskId: number;
@@ -28,8 +33,9 @@ export function getTaskFocusMinutes({
   focusTimeElapsed,
 }: TaskFocusArgs): number {
   const completedSeconds = selectedDateSessions
-    .filter((session) => session.taskId === taskId && session.status === 'COMPLETED')
-    .reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0);
+    .filter((session) => session.taskId === taskId)
+    .filter(isCountedFocusSession)
+    .reduce((sum, session) => sum + focusSessionDurationSeconds(session), 0);
 
   const activeSeconds = runningSession?.taskId === taskId ? focusTimeElapsed : 0;
 
@@ -49,12 +55,10 @@ export function buildTodayCategoryFocusData({
           tasks.find((currentTask) => currentTask.id === session.taskId) ??
           allTasks.find((currentTask) => currentTask.id === session.taskId);
 
-        return task && task.categoryId === category.id && session.status === 'COMPLETED';
+        return task && task.categoryId === category.id && isCountedFocusSession(session);
       });
 
-      const minutes = Math.round(
-        categorySessions.reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0) / 60,
-      );
+      const minutes = Math.round(sumCountedFocusSessionSeconds(categorySessions) / 60);
 
       return {
         name: category.name,

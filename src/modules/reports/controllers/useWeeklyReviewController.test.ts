@@ -42,6 +42,15 @@ describe('buildWeeklyReviewMetrics', () => {
               status: 'COMPLETED',
               createdAt: '',
             },
+            {
+              id: 3,
+              taskId: 1,
+              userId: 1,
+              startedAt: '',
+              durationSeconds: 299,
+              status: 'COMPLETED',
+              createdAt: '',
+            },
           ],
         },
         {

@@ -43,12 +43,9 @@ function assertScheduleBodyRules(body: TaskScheduleBody): void {
   if (body.startAt && body.endAt && body.endAt <= body.startAt) {
     throw new AppError(400, 'endAt must be after startAt');
   }
-  if (!body.allDay && body.startAt?.slice(0, 10) !== body.endAt?.slice(0, 10)) {
-    throw new AppError(400, 'Cross-day timed tasks are not supported yet');
-  }
   if (
     !body.allDay &&
-    (body.startAt?.slice(0, 10) !== body.plannedDate || body.endAt?.slice(0, 10) !== body.plannedDate)
+    body.startAt?.slice(0, 10) !== body.plannedDate
   ) {
     throw new AppError(400, 'Timed task date must match plannedDate');
   }

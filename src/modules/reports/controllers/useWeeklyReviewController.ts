@@ -2,6 +2,7 @@ import {useMemo} from 'react';
 
 import type {Category, Task, TaskExecutionSession} from '../../../../shared/domain/entities';
 import {getIsoDateWeekday} from '../../../../shared/lib/date';
+import {sumCountedFocusSessionSeconds} from '../../../../shared/lib/focusSessions';
 
 interface WeeklyDayData {
   day: string;
@@ -30,13 +31,7 @@ export function buildWeeklyReviewMetrics({categories, weeklyDaysData}: WeeklyRev
   );
 
   const weeklyTotalMins = Math.round(
-    weeklyDaysData.reduce((sum, day) => {
-      const completedSeconds = day.sessions
-        .filter((session) => session.status === 'COMPLETED')
-        .reduce((innerSum, session) => innerSum + (session.durationSeconds ?? 0), 0);
-
-      return sum + completedSeconds;
-    }, 0) / 60,
+    weeklyDaysData.reduce((sum, day) => sum + sumCountedFocusSessionSeconds(day.sessions), 0) / 60,
   );
 
   const weeklyTimelineRateData = weeklyDaysData.map((day) => {

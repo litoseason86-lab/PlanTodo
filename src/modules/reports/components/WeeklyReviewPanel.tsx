@@ -3,6 +3,7 @@ import {Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Toolt
 
 import type {Task, TaskExecutionSession} from '../../../../shared/domain/entities';
 import {getIsoDateWeekday} from '../../../../shared/lib/date';
+import {sumCountedFocusSessionSeconds} from '../../../../shared/lib/focusSessions';
 
 interface WeeklyTimelineRow {
   day: string;
@@ -183,11 +184,7 @@ export function WeeklyReviewPanel({
                   const achieved =
                     dayData.tasks.length > 0 &&
                     dayData.tasks.every((task) => task.status === 'DONE');
-                  const minutes = Math.round(
-                    dayData.sessions
-                      .filter((session) => session.status === 'COMPLETED')
-                      .reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0) / 60,
-                  );
+                  const minutes = Math.round(sumCountedFocusSessionSeconds(dayData.sessions) / 60);
 
                   return (
                     <div

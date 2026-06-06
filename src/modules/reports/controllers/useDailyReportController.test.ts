@@ -51,6 +51,15 @@ describe('buildDailyReportMetrics', () => {
           status: 'COMPLETED',
           createdAt: '',
         },
+        {
+          id: 3,
+          taskId: 1,
+          userId: 1,
+          startedAt: '',
+          durationSeconds: 299,
+          status: 'COMPLETED',
+          createdAt: '',
+        },
       ],
       prevDailySessions: [
         {
@@ -59,6 +68,15 @@ describe('buildDailyReportMetrics', () => {
           userId: 1,
           startedAt: '',
           durationSeconds: 1800,
+          status: 'COMPLETED',
+          createdAt: '',
+        },
+        {
+          id: 4,
+          taskId: 1,
+          userId: 1,
+          startedAt: '',
+          durationSeconds: 120,
           status: 'COMPLETED',
           createdAt: '',
         },

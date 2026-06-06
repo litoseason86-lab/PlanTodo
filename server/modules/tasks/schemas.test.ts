@@ -85,4 +85,19 @@ describe('task schemas', () => {
       allDay: false,
     });
   });
+
+  it('parses cross-day timed task schedule body', () => {
+    expect(parseTaskScheduleBody({
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T23:00:00.000',
+      endAt: '2026-06-07T02:00:00.000',
+      allDay: false,
+    })).toEqual({
+      plannedDate: '2026-06-06',
+      plannedEndDate: undefined,
+      startAt: '2026-06-06T23:00:00.000',
+      endAt: '2026-06-07T02:00:00.000',
+      allDay: false,
+    });
+  });
 });

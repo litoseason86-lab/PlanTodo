@@ -1,5 +1,6 @@
 import type {Category, Task, TaskExecutionSession} from '../../../../shared/domain/entities';
 import {toIsoDate} from '../../../../shared/lib/date';
+import {focusSessionDurationMinutes, isCountedFocusSession} from '../../../../shared/lib/focusSessions';
 import {enumerateDateRange} from '../../../../shared/lib/schedule';
 
 interface CalendarListViewProps {
@@ -20,7 +21,7 @@ function focusDate(session: TaskExecutionSession): string {
 }
 
 function focusMinutes(session: TaskExecutionSession): number {
-  return Math.round((session.durationSeconds ?? 0) / 60);
+  return focusSessionDurationMinutes(session);
 }
 
 export function CalendarListView({
@@ -47,6 +48,7 @@ export function CalendarListView({
               </div>
             ))}
             {showFocusSessions && focusSessions
+              .filter(isCountedFocusSession)
               .filter((session) => focusDate(session) === date)
               .map((session) => (
                 <div key={`focus-${session.id}`} className="mt-2 rounded-md bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-600">

@@ -1,4 +1,6 @@
-export const TIMELINE_START_HOUR = 6;
+import {addIsoDateDays} from '../../../../shared/lib/date';
+
+export const TIMELINE_START_HOUR = 0;
 export const TIMELINE_END_HOUR = 23;
 export const TIMELINE_SLOT_MINUTES = 15;
 
@@ -9,6 +11,25 @@ const TIME_ZONE_SUFFIX_PATTERN = /(Z|[+-]\d{2}:\d{2})$/;
 export interface TimelineBlock {
   topMinutes: number;
   durationMinutes: number;
+}
+
+export interface TimedTaskSegment extends TimelineBlock {
+  date: string;
+  endMinutes: number;
+  startsBeforeDate: boolean;
+  continuesAfterDate: boolean;
+  isFirstSegment: boolean;
+  isLastSegment: boolean;
+}
+
+export interface TimedTaskDayLayoutInput extends TimedTaskBlockInput {
+  taskId: number;
+}
+
+export interface TimedTaskDayLayoutSegment extends TimedTaskSegment {
+  taskId: number;
+  laneIndex: number;
+  laneCount: number;
 }
 
 export interface TimedTaskBlockInput {
@@ -38,6 +59,110 @@ export function buildTimedTaskBlock(task: TimedTaskBlockInput): TimelineBlock {
     topMinutes,
     durationMinutes: Math.max(TIMELINE_SLOT_MINUTES, endMinutes - topMinutes),
   };
+}
+
+function localDateFromDateTime(value: string): string {
+  return value.slice(0, 10);
+}
+
+function localDateTimeMinuteValue(value: string): number {
+  const date = localDateFromDateTime(value);
+  const minutes = minutesFromDayStart(value);
+  return Math.floor(new Date(`${date}T00:00:00.000Z`).getTime() / 60_000) + minutes;
+}
+
+function dateStartMinuteValue(date: string): number {
+  return Math.floor(new Date(`${date}T00:00:00.000Z`).getTime() / 60_000);
+}
+
+export function timedTaskDurationMinutes(task: TimedTaskBlockInput): number {
+  return Math.max(TIMELINE_SLOT_MINUTES, localDateTimeMinuteValue(task.endAt) - localDateTimeMinuteValue(task.startAt));
+}
+
+export function buildTimedTaskSegments(input: {
+  task: TimedTaskBlockInput;
+  visibleDates: string[];
+}): TimedTaskSegment[] {
+  const startValue = localDateTimeMinuteValue(input.task.startAt);
+  const endValue = localDateTimeMinuteValue(input.task.endAt);
+
+  if (endValue <= startValue) {
+    return [];
+  }
+
+  return input.visibleDates.flatMap((date) => {
+    const dayStart = dateStartMinuteValue(date);
+    const dayEnd = dateStartMinuteValue(addIsoDateDays(date, 1));
+    const dateSegmentStart = Math.max(startValue, dayStart);
+    const dateSegmentEnd = Math.min(endValue, dayEnd);
+
+    if (dateSegmentEnd <= dateSegmentStart) {
+      return [];
+    }
+
+    return [{
+      date,
+      topMinutes: dateSegmentStart - dayStart,
+      endMinutes: dateSegmentEnd - dayStart,
+      durationMinutes: Math.max(TIMELINE_SLOT_MINUTES, dateSegmentEnd - dateSegmentStart),
+      startsBeforeDate: startValue < dayStart,
+      continuesAfterDate: endValue > dayEnd,
+      isFirstSegment: dateSegmentStart === startValue,
+      isLastSegment: dateSegmentEnd === endValue,
+    }];
+  });
+}
+
+function segmentsOverlap(a: Pick<TimedTaskSegment, 'topMinutes' | 'endMinutes'>, b: Pick<TimedTaskSegment, 'topMinutes' | 'endMinutes'>): boolean {
+  return a.topMinutes < b.endMinutes && b.topMinutes < a.endMinutes;
+}
+
+export function buildTimedTaskDayLayout(input: {
+  date: string;
+  tasks: TimedTaskDayLayoutInput[];
+}): TimedTaskDayLayoutSegment[] {
+  const segments = input.tasks.flatMap((task) => buildTimedTaskSegments({
+    task,
+    visibleDates: [input.date],
+  }).map((segment) => ({
+    ...segment,
+    taskId: task.taskId,
+  }))).sort((a, b) => a.topMinutes - b.topMinutes || a.endMinutes - b.endMinutes || a.taskId - b.taskId);
+
+  const activeLanes: Array<TimedTaskDayLayoutSegment | undefined> = [];
+  const laidOutSegments: TimedTaskDayLayoutSegment[] = [];
+
+  for (const segment of segments) {
+    for (let index = 0; index < activeLanes.length; index += 1) {
+      const activeLane = activeLanes[index];
+      if (activeLane && activeLane.endMinutes <= segment.topMinutes) {
+        activeLanes[index] = undefined;
+      }
+    }
+
+    const laneIndex = activeLanes.findIndex((activeSegment) => !activeSegment);
+    const nextSegment: TimedTaskDayLayoutSegment = {
+      ...segment,
+      laneIndex: laneIndex === -1 ? activeLanes.length : laneIndex,
+      laneCount: 1,
+    };
+    activeLanes[nextSegment.laneIndex] = nextSegment;
+    laidOutSegments.push(nextSegment);
+  }
+
+  return laidOutSegments.map((segment) => {
+    const laneCount = Math.max(
+      1,
+      ...laidOutSegments
+        .filter((otherSegment) => segmentsOverlap(segment, otherSegment))
+        .map((otherSegment) => otherSegment.laneIndex + 1),
+    );
+
+    return {
+      ...segment,
+      laneCount,
+    };
+  });
 }
 
 export function snapMinutes(minutes: number): number {

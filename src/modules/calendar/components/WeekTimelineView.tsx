@@ -2,16 +2,20 @@ import {useEffect, useState} from 'react';
 
 import type {Category, Task, TaskExecutionSession} from '../../../../shared/domain/entities';
 import {toIsoDate} from '../../../../shared/lib/date';
+import {focusSessionDurationMinutes, isCountedFocusSession} from '../../../../shared/lib/focusSessions';
 import {buildWeekDays} from '../controllers/calendarLayout';
 import {
   TIMELINE_END_HOUR,
   TIMELINE_SLOT_MINUTES,
   TIMELINE_START_HOUR,
-  buildFocusSessionBlock,
-  buildTimedTaskBlock,
+  buildTimedTaskDayLayout,
+  timedTaskDurationMinutes,
+  type TimedTaskDayLayoutSegment,
 } from '../controllers/weekTimelineLayout';
 
 const HOURS = Array.from({length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1}, (_, index) => index + TIMELINE_START_HOUR);
+const MINUTES_PER_HOUR = 60;
+const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
 
 interface WeekTimelineViewProps {
   anchorDate: string;
@@ -66,7 +70,44 @@ function taskDurationMinutes(task: Task): number | undefined {
   if (!task.startAt || !task.endAt) {
     return undefined;
   }
-  return buildTimedTaskBlock({startAt: task.startAt, endAt: task.endAt}).durationMinutes;
+  return timedTaskDurationMinutes({startAt: task.startAt, endAt: task.endAt});
+}
+
+function formatTimelineClock(minutes: number): string {
+  const clampedMinutes = Math.min(Math.max(minutes, 0), MINUTES_PER_DAY);
+  if (clampedMinutes === MINUTES_PER_DAY) {
+    return '24:00';
+  }
+
+  const hour = Math.floor(clampedMinutes / MINUTES_PER_HOUR);
+  const minute = clampedMinutes % MINUTES_PER_HOUR;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function taskSegmentLabel(task: Task, segment: TimedTaskDayLayoutSegment): string {
+  if (!task.startAt || !task.endAt) {
+    return task.title;
+  }
+
+  const start = formatTimelineClock(segment.topMinutes);
+  const end = formatTimelineClock(segment.endMinutes);
+  return `${start}-${end} ${task.title}`;
+}
+
+function timelineColumnBlockStyle(segment: TimedTaskDayLayoutSegment) {
+  return {
+    top: `${(segment.topMinutes / MINUTES_PER_DAY) * 100}%`,
+    height: `${Math.min(100, (segment.durationMinutes / MINUTES_PER_DAY) * 100)}%`,
+    minHeight: '24px',
+  };
+}
+
+function timelineLaneStyle(segment: TimedTaskDayLayoutSegment) {
+  const width = 100 / segment.laneCount;
+  return {
+    left: `${segment.laneIndex * width}%`,
+    width: `${width}%`,
+  };
 }
 
 function getResizeDurationMinutes(input: {
@@ -83,7 +124,27 @@ function focusDate(session: TaskExecutionSession): string {
 }
 
 function focusMinutes(session: TaskExecutionSession): number {
-  return Math.round((session.durationSeconds ?? 0) / 60);
+  return focusSessionDurationMinutes(session);
+}
+
+function focusMinutesForTaskDate(input: {
+  focusSessions: TaskExecutionSession[];
+  taskId: number;
+  date: string;
+}): number {
+  return input.focusSessions
+    .filter(isCountedFocusSession)
+    .filter((session) => session.taskId === input.taskId && focusDate(session) === input.date)
+    .reduce((sum, session) => sum + focusMinutes(session), 0);
+}
+
+function taskSegmentAriaLabel(input: {
+  task: Task;
+  segment: TimedTaskDayLayoutSegment;
+  focusMinutes: number;
+}): string {
+  const focusLabel = input.focusMinutes > 0 ? `，专注 ${input.focusMinutes}m` : '';
+  return `${input.segment.date} ${taskSegmentLabel(input.task, input.segment)}${focusLabel}`;
 }
 
 export function WeekTimelineView({
@@ -147,89 +208,116 @@ export function WeekTimelineView({
           </div>
         ))}
       </div>
-      {HOURS.map((hour) => (
-        <div key={hour} className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-slate-100">
-          <div className="p-2 text-xs font-semibold text-slate-400">{String(hour).padStart(2, '0')}:00</div>
-          {days.map((day) => (
-            <div
-              key={`${day.isoDate}-${hour}`}
-              aria-label={`${day.isoDate} ${String(hour).padStart(2, '0')}:00`}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                const payload = readDragPayload(event);
-                if (!payload?.taskId) {
-                  return;
-                }
-                if (payload.durationMinutes) {
-                  void onMoveTimedTask({
-                    taskId: payload.taskId,
-                    date: day.isoDate,
-                    hour,
-                    minute: 0,
-                    durationMinutes: payload.durationMinutes,
-                  });
-                  return;
-                }
-                void onScheduleTime({taskId: payload.taskId, date: day.isoDate, hour, minute: 0});
-              }}
-              className="min-h-12 border-l border-slate-100 p-1"
-            >
-              {(tasksByDate[day.isoDate] ?? [])
-                .filter((task) => !task.allDay && task.startAt?.slice(11, 13) === String(hour).padStart(2, '0'))
-                .map((task) => (
-                  <div
-                    key={task.id}
-                    draggable
-                    onDragStart={(event) => writeDragPayload(event, {
-                      taskId: task.id,
-                      durationMinutes: taskDurationMinutes(task),
-                    })}
-                    className="truncate rounded px-2 py-1 text-[11px] font-bold text-white"
-                    style={{backgroundColor: categoryColor(categories, task.categoryId)}}
-                  >
-                    {task.startAt?.slice(11, 16)} {task.title}
-                    <button
-                      type="button"
-                      aria-label={`调整${task.title}时长`}
-                      className="mt-1 block h-2 w-full rounded bg-white/40"
-                      onPointerDown={(event) => {
-                        event.stopPropagation();
-                        const durationMinutes = taskDurationMinutes(task);
-                        if (!task.startAt || !durationMinutes) {
-                          return;
-                        }
-                        setResizeState({
-                          taskId: task.id,
-                          plannedDate: task.plannedDate,
-                          startAt: task.startAt,
-                          initialDurationMinutes: durationMinutes,
-                          startY: event.clientY,
-                        });
-                      }}
-                    />
-                  </div>
-                ))}
-              {showFocusSessions && focusSessions
-                .filter((session) => focusDate(session) === day.isoDate)
-                .map((session) => ({session, block: buildFocusSessionBlock(session)}))
-                .filter(({block}) => Math.floor(block.topMinutes / 60) === hour)
-                .map(({session, block}) => (
-                  <div
-                    key={`focus-${session.id}`}
-                    className="mt-1 rounded border border-indigo-100 bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600"
-                    style={{
-                      marginTop: `${Math.max(0, block.topMinutes - hour * 60)}px`,
-                      minHeight: `${Math.max(24, block.durationMinutes)}px`,
-                    }}
-                  >
-                    专注 {focusMinutes(session)}m
-                  </div>
-                ))}
+      <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))]">
+        <div>
+          {HOURS.map((hour) => (
+            <div key={hour} className="h-16 border-b border-slate-100 p-2 text-xs font-semibold text-slate-400">
+              {String(hour).padStart(2, '0')}:00
             </div>
           ))}
         </div>
-      ))}
+        {days.map((day) => {
+          const timedTasks = (tasksByDate[day.isoDate] ?? [])
+            .filter((task): task is Task & {startAt: string; endAt: string} => !task.allDay && Boolean(task.startAt && task.endAt));
+          const taskById = new Map(timedTasks.map((task) => [task.id, task]));
+          const taskSegments = buildTimedTaskDayLayout({
+            date: day.isoDate,
+            tasks: timedTasks.map((task) => ({
+              taskId: task.id,
+              startAt: task.startAt,
+              endAt: task.endAt,
+            })),
+          });
+
+          return (
+            <div key={day.isoDate} className="relative border-l border-slate-100">
+              {HOURS.map((hour) => (
+                <div
+                  key={`${day.isoDate}-${hour}`}
+                  aria-label={`${day.isoDate} ${String(hour).padStart(2, '0')}:00`}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const payload = readDragPayload(event);
+                    if (!payload?.taskId) {
+                      return;
+                    }
+                    if (payload.durationMinutes) {
+                      void onMoveTimedTask({
+                        taskId: payload.taskId,
+                        date: day.isoDate,
+                        hour,
+                        minute: 0,
+                        durationMinutes: payload.durationMinutes,
+                      });
+                      return;
+                    }
+                    void onScheduleTime({taskId: payload.taskId, date: day.isoDate, hour, minute: 0});
+                  }}
+                  className="h-16 border-b border-slate-100"
+                />
+              ))}
+              <div className="pointer-events-none absolute inset-0">
+                {taskSegments.map((segment) => {
+                  const task = taskById.get(segment.taskId);
+                  if (!task) {
+                    return null;
+                  }
+                  const taskFocusMinutes = showFocusSessions
+                    ? focusMinutesForTaskDate({focusSessions, taskId: task.id, date: segment.date})
+                    : 0;
+
+                  return (
+                    <div
+                      key={`${task.id}-${segment.date}-${segment.topMinutes}-${segment.endMinutes}`}
+                      draggable
+                      aria-label={taskSegmentAriaLabel({task, segment, focusMinutes: taskFocusMinutes})}
+                      onDragStart={(event) => writeDragPayload(event, {
+                        taskId: task.id,
+                        durationMinutes: taskDurationMinutes(task),
+                      })}
+                      className="pointer-events-auto absolute z-10 overflow-hidden rounded px-2 py-1 text-[11px] font-bold leading-tight text-white"
+                      style={{
+                        backgroundColor: categoryColor(categories, task.categoryId),
+                        ...timelineColumnBlockStyle(segment),
+                        ...timelineLaneStyle(segment),
+                      }}
+                    >
+                      <div className="truncate">{taskSegmentLabel(task, segment)}</div>
+                      {taskFocusMinutes > 0 && (
+                        <div className="mt-1 truncate rounded bg-white/25 px-1 text-[10px]">
+                          专注 {taskFocusMinutes}m
+                        </div>
+                      )}
+                      {segment.isLastSegment && (
+                        <button
+                          type="button"
+                          aria-label={`调整${task.title}时长`}
+                          className="mt-1 block h-2 w-full rounded bg-white/40"
+                          onPointerDown={(event) => {
+                            event.stopPropagation();
+                            const durationMinutes = taskDurationMinutes(task);
+                            if (!task.startAt || !durationMinutes) {
+                              return;
+                            }
+                            setResizeState({
+                              taskId: task.id,
+                              plannedDate: task.plannedDate,
+                              startAt: task.startAt,
+                              initialDurationMinutes: durationMinutes,
+                              startY: event.clientY,
+                            });
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
