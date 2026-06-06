@@ -1,8 +1,11 @@
-import {useState} from 'react';
+import {type CSSProperties, useState} from 'react';
 
 import type {Category} from '../../../../shared/domain/entities';
 import {useCalendarController} from '../controllers/useCalendarController';
+import {CalendarListView} from './CalendarListView';
 import {CalendarToolbar} from './CalendarToolbar';
+import {MonthCalendarView} from './MonthCalendarView';
+import {WeekTimelineView} from './WeekTimelineView';
 
 interface CalendarPanelProps {
   categories: Category[];
@@ -29,8 +32,31 @@ export function CalendarPanel({categories, styleContext, showToast, initialDate}
           显示设置
         </div>
       )}
-      <div className="rounded-lg border border-slate-200 bg-white p-4" style={{borderColor: styleContext.primaryLight}}>
-        <p className="text-sm font-bold text-slate-700">日历数据加载中...</p>
+      <div style={{'--calendar-accent': styleContext.primary} as CSSProperties}>
+        {controller.view === 'month' && (
+          <MonthCalendarView
+            anchorDate={controller.anchorDate}
+            tasksByDate={controller.tasksByDate}
+            categories={categories}
+            onCreateDateTask={controller.createAllDayTask}
+            onScheduleDate={controller.scheduleTaskForDate}
+          />
+        )}
+        {controller.view === 'week' && (
+          <WeekTimelineView
+            anchorDate={controller.anchorDate}
+            tasksByDate={controller.tasksByDate}
+            categories={categories}
+          />
+        )}
+        {controller.view === 'list' && (
+          <CalendarListView
+            dateFrom={controller.range.dateFrom}
+            dateTo={controller.range.dateTo}
+            tasksByDate={controller.tasksByDate}
+            categories={categories}
+          />
+        )}
       </div>
     </section>
   );
