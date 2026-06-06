@@ -2,7 +2,6 @@ import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
 import type {Category, Task, TaskExecutionSession} from '../../../../shared/domain/entities';
 import {toIsoDate} from '../../../../shared/lib/date';
-import {addMinutesToLocalDateTime, makeLocalDateTime} from '../../../../shared/lib/schedule';
 import {calendarApi} from '../api/calendarApi';
 import {getCalendarRange, groupTasksByDate, type CalendarView} from './calendarLayout';
 import {
@@ -11,22 +10,16 @@ import {
   saveCalendarSettings,
   type CalendarSettings,
 } from './calendarSettings';
+import {useTaskSchedulingActions} from './useTaskSchedulingActions';
 
 interface UseCalendarControllerArgs {
   categories: Category[];
   initialDate?: string;
   showToast: (message: string, type?: 'success' | 'error') => void;
+  onMutationSuccess?: () => Promise<void> | void;
 }
 
-interface TaskScheduleUpdate {
-  plannedDate: string;
-  plannedEndDate?: string;
-  startAt?: string;
-  endAt?: string;
-  allDay: boolean;
-}
-
-export function useCalendarController({categories, initialDate, showToast}: UseCalendarControllerArgs) {
+export function useCalendarController({categories, initialDate, showToast, onMutationSuccess}: UseCalendarControllerArgs) {
   const showToastRef = useRef(showToast);
   const refreshSeqRef = useRef(0);
   const [view, setView] = useState<CalendarView>('week');
@@ -86,70 +79,26 @@ export function useCalendarController({categories, initialDate, showToast}: UseC
     void refreshCalendarData();
   }, [refreshCalendarData, range, settings.showFocusSessions, settings.visibleCategoryIds]);
 
-  async function persistSchedule(taskId: number, schedule: TaskScheduleUpdate) {
-    try {
-      await calendarApi.updateTaskSchedule(taskId, schedule);
-      await refreshCalendarData();
-    } catch (error) {
-      showToastRef.current(error instanceof Error ? error.message : '排期更新失败', 'error');
-    }
-  }
+  const schedulingActions = useTaskSchedulingActions({
+    showToast,
+    refreshCalendarData,
+    onMutationSuccess,
+  });
 
   async function scheduleTaskForDate(taskId: number, plannedDate: string) {
-    await persistSchedule(taskId, {
-      plannedDate,
-      plannedEndDate: undefined,
-      startAt: undefined,
-      endAt: undefined,
-      allDay: true,
-    });
+    return schedulingActions.scheduleDate({taskId, date: plannedDate});
   }
 
   async function scheduleTaskAtTime(input: {taskId: number; date: string; hour: number; minute: number}) {
-    try {
-      const startAt = makeLocalDateTime(input.date, input.hour, input.minute);
-      const endAt = addMinutesToLocalDateTime(startAt, 60);
-      await persistSchedule(input.taskId, {
-        plannedDate: input.date,
-        plannedEndDate: undefined,
-        startAt,
-        endAt,
-        allDay: false,
-      });
-    } catch (error) {
-      showToastRef.current(error instanceof Error ? error.message : '排期更新失败', 'error');
-    }
+    return schedulingActions.scheduleTime(input);
   }
 
   async function moveTimedTask(input: {taskId: number; date: string; hour: number; minute: number; durationMinutes: number}) {
-    try {
-      const startAt = makeLocalDateTime(input.date, input.hour, input.minute);
-      const endAt = addMinutesToLocalDateTime(startAt, input.durationMinutes);
-      await persistSchedule(input.taskId, {
-        plannedDate: input.date,
-        plannedEndDate: undefined,
-        startAt,
-        endAt,
-        allDay: false,
-      });
-    } catch (error) {
-      showToastRef.current(error instanceof Error ? error.message : '排期更新失败', 'error');
-    }
+    return schedulingActions.moveTimedTask(input);
   }
 
   async function resizeTimedTask(input: {taskId: number; plannedDate: string; startAt: string; durationMinutes: number}) {
-    try {
-      const endAt = addMinutesToLocalDateTime(input.startAt, input.durationMinutes);
-      await persistSchedule(input.taskId, {
-        plannedDate: input.plannedDate,
-        plannedEndDate: undefined,
-        startAt: input.startAt,
-        endAt,
-        allDay: false,
-      });
-    } catch (error) {
-      showToastRef.current(error instanceof Error ? error.message : '排期更新失败', 'error');
-    }
+    return schedulingActions.resizeTimedTask(input);
   }
 
   async function createAllDayTask(plannedDate: string, title = '新任务') {
@@ -167,6 +116,7 @@ export function useCalendarController({categories, initialDate, showToast}: UseC
         allDay: true,
       });
       await refreshCalendarData();
+      await onMutationSuccess?.();
     } catch (error) {
       showToastRef.current(error instanceof Error ? error.message : '任务创建失败', 'error');
     }
@@ -192,5 +142,7 @@ export function useCalendarController({categories, initialDate, showToast}: UseC
     scheduleTaskAtTime,
     moveTimedTask,
     resizeTimedTask,
+    batchScheduleDate: schedulingActions.batchScheduleDate,
+    batchUnschedule: schedulingActions.batchUnschedule,
   };
 }

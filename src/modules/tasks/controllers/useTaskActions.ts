@@ -45,9 +45,10 @@ export function useTaskActions({
   const [taskFormTitle, setTaskFormTitle] = useState('');
   const [taskFormCategory, setTaskFormCategory] = useState(0);
   const [taskFormDate, setTaskFormDate] = useState(() => toIsoDate(new Date()));
+  const [taskFormUnscheduled, setTaskFormUnscheduled] = useState(activeTab === 'tasks');
   const [taskFilterCategory, setTaskFilterCategory] = useState('all');
   const [taskFilterStatus, setTaskFilterStatus] = useState('all');
-  const [taskFilterDateScope, setTaskFilterDateScope] = useState<'today' | 'seven-days' | 'all'>('today');
+  const [taskFilterDateScope, setTaskFilterDateScope] = useState<'today' | 'seven-days' | 'all' | 'unscheduled'>('today');
 
   const filteredTaskItems = useMemo(
     () => filterTasks(allTasks, {
@@ -77,11 +78,15 @@ export function useTaskActions({
 
     try {
       setLoading(true);
-      await tasksApi.createTask({title: taskFormTitle, categoryId: catId, plannedDate: taskFormDate});
+      await tasksApi.createTask({
+        title: taskFormTitle,
+        categoryId: catId,
+        plannedDate: taskFormUnscheduled ? undefined : taskFormDate,
+      });
       showToast('任务已成功下派！');
       setTaskFormTitle('');
       await refreshAllTasks();
-      if (taskFormDate === selectedDate) {
+      if (!taskFormUnscheduled && taskFormDate === selectedDate) {
         await loadTasksForSelectedDate();
       }
     } catch (err) {
@@ -135,6 +140,7 @@ export function useTaskActions({
     taskFormTitle,
     taskFormCategory,
     taskFormDate,
+    taskFormUnscheduled,
     taskFilterCategory,
     taskFilterStatus,
     taskFilterDateScope,
@@ -143,6 +149,7 @@ export function useTaskActions({
     setTaskFormCategory,
     setDefaultTaskCategory,
     setTaskFormDate,
+    setTaskFormUnscheduled,
     setTaskFilterCategory,
     setTaskFilterStatus,
     setTaskFilterDateScope,

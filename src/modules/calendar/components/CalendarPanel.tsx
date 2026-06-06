@@ -2,22 +2,39 @@ import {type CSSProperties, useState} from 'react';
 
 import type {Category} from '../../../../shared/domain/entities';
 import {useCalendarController} from '../controllers/useCalendarController';
-import {CalendarListView} from './CalendarListView';
+import {useSchedulingSidebarController} from '../controllers/useSchedulingSidebarController';
+import {CalendarSurface} from './CalendarSurface';
 import {CalendarSettingsMenu} from './CalendarSettingsMenu';
 import {CalendarToolbar} from './CalendarToolbar';
-import {MonthCalendarView} from './MonthCalendarView';
-import {WeekTimelineView} from './WeekTimelineView';
+import {SchedulingSidebar} from './SchedulingSidebar';
 
 interface CalendarPanelProps {
   categories: Category[];
   styleContext: {primary: string; primaryLight: string; secondary: string};
   showToast: (message: string, type?: 'success' | 'error') => void;
   initialDate?: string;
+  onMutationSuccess?: () => Promise<void> | void;
 }
 
-export function CalendarPanel({categories, styleContext, showToast, initialDate}: CalendarPanelProps) {
+export function CalendarPanel({categories, styleContext, showToast, initialDate, onMutationSuccess}: CalendarPanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const controller = useCalendarController({categories, initialDate, showToast});
+  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
+  const controller = useCalendarController({
+    categories,
+    initialDate,
+    showToast,
+    onMutationSuccess: async () => {
+      await onMutationSuccess?.();
+      setSidebarRefreshKey((key) => key + 1);
+    },
+  });
+  const sidebarController = useSchedulingSidebarController({
+    range: controller.range,
+    externalRefreshKey: sidebarRefreshKey,
+    showToast,
+    batchScheduleDate: controller.batchScheduleDate,
+    batchUnschedule: controller.batchUnschedule,
+  });
 
   return (
     <section id="calendar_view" className="space-y-4">
@@ -36,37 +53,19 @@ export function CalendarPanel({categories, styleContext, showToast, initialDate}
         />
       )}
       <div style={{'--calendar-accent': styleContext.primary} as CSSProperties}>
-        {controller.view === 'month' && (
-          <MonthCalendarView
-            anchorDate={controller.anchorDate}
-            tasksByDate={controller.tasksByDate}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
+            <CalendarSurface
+              controller={controller}
+              categories={categories}
+              onRejectBatchTimeDrop={() => showToast('批量任务只能安排到日期', 'error')}
+            />
+          </div>
+          <SchedulingSidebar
+            controller={sidebarController}
             categories={categories}
-            onCreateDateTask={controller.createAllDayTask}
-            onScheduleDate={controller.scheduleTaskForDate}
           />
-        )}
-        {controller.view === 'week' && (
-          <WeekTimelineView
-            anchorDate={controller.anchorDate}
-            tasksByDate={controller.tasksByDate}
-            categories={categories}
-            focusSessions={controller.focusSessions}
-            showFocusSessions={controller.settings.showFocusSessions}
-            onScheduleTime={controller.scheduleTaskAtTime}
-            onMoveTimedTask={controller.moveTimedTask}
-            onResizeTimedTask={controller.resizeTimedTask}
-          />
-        )}
-        {controller.view === 'list' && (
-          <CalendarListView
-            dateFrom={controller.range.dateFrom}
-            dateTo={controller.range.dateTo}
-            tasksByDate={controller.tasksByDate}
-            categories={categories}
-            focusSessions={controller.focusSessions}
-            showFocusSessions={controller.settings.showFocusSessions}
-          />
-        )}
+        </div>
       </div>
     </section>
   );

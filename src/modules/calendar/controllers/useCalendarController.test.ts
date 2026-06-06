@@ -8,8 +8,12 @@ vi.mock('../api/calendarApi', () => ({
   calendarApi: {
     getCalendarTasks: vi.fn(),
     getFocusSessions: vi.fn(),
+    getUnscheduledTasks: vi.fn(),
+    getAllDayWithoutTimeTasks: vi.fn(),
     createCalendarTask: vi.fn(),
     updateTaskSchedule: vi.fn(),
+    batchScheduleDate: vi.fn(),
+    batchUnschedule: vi.fn(),
   },
 }));
 
@@ -237,6 +241,46 @@ describe('useCalendarController', () => {
     });
 
     expect(showToast).toHaveBeenCalledWith('排期失败', 'error');
+  });
+
+  it('runs mutation success callback after scheduling succeeds', async () => {
+    const onMutationSuccess = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.updateTaskSchedule).mockResolvedValue({id: 1} as never);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+      onMutationSuccess,
+    }));
+
+    await act(async () => {
+      await result.current.scheduleTaskForDate(1, '2026-06-08');
+    });
+
+    expect(onMutationSuccess).toHaveBeenCalledOnce();
+  });
+
+  it('does not run mutation success callback after failed scheduling', async () => {
+    const onMutationSuccess = vi.fn();
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.updateTaskSchedule).mockRejectedValue(new Error('排期失败'));
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+      onMutationSuccess,
+    }));
+
+    await act(async () => {
+      await result.current.scheduleTaskForDate(1, '2026-06-08');
+    });
+
+    expect(onMutationSuccess).not.toHaveBeenCalled();
   });
 
   it('shows an error toast when default time scheduling would cross midnight', async () => {

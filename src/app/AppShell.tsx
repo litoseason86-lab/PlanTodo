@@ -196,15 +196,21 @@ export default function AppShell() {
             taskFormTitle={taskActions.taskFormTitle}
             taskFormCategory={taskActions.taskFormCategory}
             taskFormDate={taskActions.taskFormDate}
+            taskFormUnscheduled={taskActions.taskFormUnscheduled}
             taskFilterCategory={taskActions.taskFilterCategory}
             taskFilterStatus={taskActions.taskFilterStatus}
             taskFilterDateScope={taskActions.taskFilterDateScope}
             setTaskFormTitle={taskActions.setTaskFormTitle}
             setTaskFormCategory={taskActions.setTaskFormCategory}
             setTaskFormDate={taskActions.setTaskFormDate}
+            setTaskFormUnscheduled={taskActions.setTaskFormUnscheduled}
             setTaskFilterCategory={taskActions.setTaskFilterCategory}
             setTaskFilterStatus={taskActions.setTaskFilterStatus}
             setTaskFilterDateScope={taskActions.setTaskFilterDateScope}
+            showToast={showToast}
+            selectedDate={selectedDate}
+            refreshAllTasks={refreshAllTasks}
+            loadTasksForSelectedDate={loadTasksForSelectedDate}
             handleCreateTask={taskActions.handleCreateTask}
             handleUpdateTaskStatus={taskActions.handleUpdateTaskStatus}
             handleStartSession={focusSession.handleStartSession}
@@ -236,6 +242,10 @@ export default function AppShell() {
             styleContext={{primary: styleContext.primary, primaryLight: styleContext.primaryLight, secondary: styleContext.secondary}}
             categories={categories}
             showToast={showToast}
+            onMutationSuccess={async () => {
+              await refreshAllTasks();
+              await loadTasksForSelectedDate();
+            }}
           />
         )}
         {activeTab === 'daily' && (

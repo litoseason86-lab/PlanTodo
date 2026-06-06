@@ -47,6 +47,10 @@ export interface TimelineClockTime {
   minute: number;
 }
 
+export interface TimelineDropClockTime extends TimelineClockTime {
+  date: string;
+}
+
 export function minutesFromDayStart(value: string): number {
   return Number(value.slice(11, 13)) * MINUTES_PER_HOUR + Number(value.slice(14, 16));
 }
@@ -166,6 +170,10 @@ export function buildTimedTaskDayLayout(input: {
 }
 
 export function snapMinutes(minutes: number): number {
+  if (!Number.isFinite(minutes)) {
+    return 0;
+  }
+
   return Math.round(minutes / TIMELINE_SLOT_MINUTES) * TIMELINE_SLOT_MINUTES;
 }
 
@@ -179,6 +187,29 @@ export function getHourFromDropMinute(dropMinute: number): TimelineClockTime {
   return {
     hour: Math.floor(minutesFromMidnight / MINUTES_PER_HOUR),
     minute: minutesFromMidnight % MINUTES_PER_HOUR,
+  };
+}
+
+export function getTimelineDropClock(input: {
+  date: string;
+  hour: number;
+  clientY: number;
+  rectTop: number;
+  rectHeight: number;
+}): TimelineDropClockTime {
+  if (!Number.isFinite(input.clientY) || !Number.isFinite(input.rectTop) || !Number.isFinite(input.rectHeight) || input.rectHeight <= 0) {
+    return {date: input.date, hour: input.hour, minute: 0};
+  }
+
+  const minutesWithinHour = Math.min(
+    MINUTES_PER_HOUR - TIMELINE_SLOT_MINUTES,
+    Math.max(0, snapMinutes(((input.clientY - input.rectTop) / input.rectHeight) * MINUTES_PER_HOUR)),
+  );
+
+  return {
+    date: input.date,
+    hour: input.hour,
+    minute: minutesWithinHour,
   };
 }
 

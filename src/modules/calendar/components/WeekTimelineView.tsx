@@ -9,9 +9,11 @@ import {
   TIMELINE_SLOT_MINUTES,
   TIMELINE_START_HOUR,
   buildTimedTaskDayLayout,
+  getTimelineDropClock,
   timedTaskDurationMinutes,
   type TimedTaskDayLayoutSegment,
 } from '../controllers/weekTimelineLayout';
+import {readCalendarDragPayload, writeCalendarDragPayload} from '../controllers/schedulingDrag';
 
 const HOURS = Array.from({length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1}, (_, index) => index + TIMELINE_START_HOUR);
 const MINUTES_PER_HOUR = 60;
@@ -24,9 +26,12 @@ interface WeekTimelineViewProps {
   categories: Category[];
   focusSessions: TaskExecutionSession[];
   showFocusSessions: boolean;
-  onScheduleTime: (input: {taskId: number; date: string; hour: number; minute: number}) => Promise<void>;
-  onMoveTimedTask: (input: {taskId: number; date: string; hour: number; minute: number; durationMinutes: number}) => Promise<void>;
-  onResizeTimedTask: (input: {taskId: number; plannedDate: string; startAt: string; durationMinutes: number}) => Promise<void>;
+  onScheduleDate: (taskId: number, date: string) => Promise<boolean>;
+  onBatchScheduleDate: (taskIds: number[], date: string) => Promise<boolean>;
+  onScheduleTime: (input: {taskId: number; date: string; hour: number; minute: number}) => Promise<boolean>;
+  onMoveTimedTask: (input: {taskId: number; date: string; hour: number; minute: number; durationMinutes: number}) => Promise<boolean>;
+  onResizeTimedTask: (input: {taskId: number; plannedDate: string; startAt: string; durationMinutes: number}) => Promise<boolean>;
+  onRejectBatchTimeDrop: () => void;
 }
 
 interface ResizeState {
@@ -39,32 +44,6 @@ interface ResizeState {
 
 function categoryColor(categories: Category[], categoryId: number): string {
   return categories.find((category) => category.id === categoryId)?.color ?? '#64748b';
-}
-
-function readDragPayload(event: React.DragEvent): {taskId: number; durationMinutes?: number} | undefined {
-  const raw = event.dataTransfer.getData('application/json') || event.dataTransfer.getData('text/plain');
-  if (!raw) {
-    return undefined;
-  }
-
-  try {
-    const payload = raw.startsWith('{')
-      ? JSON.parse(raw) as {taskId?: unknown; durationMinutes?: unknown}
-      : {taskId: Number(raw)};
-    if (typeof payload.taskId !== 'number' || !Number.isFinite(payload.taskId)) {
-      return undefined;
-    }
-    return typeof payload.durationMinutes === 'number' && Number.isFinite(payload.durationMinutes)
-      ? {taskId: payload.taskId, durationMinutes: payload.durationMinutes}
-      : {taskId: payload.taskId};
-  } catch {
-    return undefined;
-  }
-}
-
-function writeDragPayload(event: React.DragEvent, payload: {taskId: number; durationMinutes?: number}) {
-  event.dataTransfer.setData('application/json', JSON.stringify(payload));
-  event.dataTransfer.setData('text/plain', String(payload.taskId));
 }
 
 function taskDurationMinutes(task: Task): number | undefined {
@@ -162,9 +141,12 @@ export function WeekTimelineView({
   categories,
   focusSessions,
   showFocusSessions,
+  onScheduleDate,
+  onBatchScheduleDate,
   onScheduleTime,
   onMoveTimedTask,
   onResizeTimedTask,
+  onRejectBatchTimeDrop,
 }: WeekTimelineViewProps) {
   const days = buildWeekDays(anchorDate);
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
@@ -201,13 +183,28 @@ export function WeekTimelineView({
       <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-slate-200">
         <div className="p-2 text-xs font-bold text-slate-400">全天</div>
         {days.map((day) => (
-          <div key={day.isoDate} className="min-h-20 border-l border-slate-100 p-2">
+          <div
+            key={day.isoDate}
+            aria-label={`${day.isoDate} 全天`}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              const payload = readCalendarDragPayload(event.dataTransfer);
+              if (!payload) return;
+              if (payload.type === 'calendar-task-batch') {
+                void onBatchScheduleDate(payload.taskIds, day.isoDate);
+                return;
+              }
+              void onScheduleDate(payload.taskId, day.isoDate);
+            }}
+            className="min-h-20 border-l border-slate-100 p-2"
+          >
             <div className="mb-2 text-xs font-bold text-slate-500">{day.isoDate.slice(5)}</div>
             {(tasksByDate[day.isoDate] ?? []).filter((task) => task.allDay && task.plannedDate).map((task) => (
               <div
                 key={task.id}
                 draggable
-                onDragStart={(event) => writeDragPayload(event, {taskId: task.id})}
+                onDragStart={(event) => writeCalendarDragPayload(event.dataTransfer, {type: 'calendar-task', taskId: task.id, source: 'calendar'})}
                 className="mb-1 truncate rounded px-2 py-1 text-[11px] font-bold text-white"
                 style={{backgroundColor: categoryColor(categories, task.categoryId)}}
               >
@@ -249,21 +246,33 @@ export function WeekTimelineView({
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => {
                     event.preventDefault();
-                    const payload = readDragPayload(event);
-                    if (!payload?.taskId) {
+                    const payload = readCalendarDragPayload(event.dataTransfer);
+                    if (!payload) {
                       return;
                     }
-                    if (payload.durationMinutes) {
+                    if (payload.type === 'calendar-task-batch') {
+                      onRejectBatchTimeDrop();
+                      return;
+                    }
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const clock = getTimelineDropClock({
+                      date: day.isoDate,
+                      hour,
+                      clientY: event.clientY,
+                      rectTop: rect.top,
+                      rectHeight: rect.height,
+                    });
+                    if (payload.type === 'calendar-timed-task') {
                       void onMoveTimedTask({
                         taskId: payload.taskId,
-                        date: day.isoDate,
-                        hour,
-                        minute: 0,
+                        date: clock.date,
+                        hour: clock.hour,
+                        minute: clock.minute,
                         durationMinutes: payload.durationMinutes,
                       });
                       return;
                     }
-                    void onScheduleTime({taskId: payload.taskId, date: day.isoDate, hour, minute: 0});
+                    void onScheduleTime({taskId: payload.taskId, date: clock.date, hour: clock.hour, minute: clock.minute});
                   }}
                   className="h-16 border-b border-slate-100"
                 />
@@ -283,10 +292,15 @@ export function WeekTimelineView({
                       key={`${task.id}-${segment.date}-${segment.topMinutes}-${segment.endMinutes}`}
                       draggable
                       aria-label={taskSegmentAriaLabel({task, segment, focusMinutes: taskFocusMinutes})}
-                      onDragStart={(event) => writeDragPayload(event, {
-                        taskId: task.id,
-                        durationMinutes: taskDurationMinutes(task),
-                      })}
+                      onDragStart={(event) => {
+                        const durationMinutes = taskDurationMinutes(task);
+                        if (!durationMinutes) return;
+                        writeCalendarDragPayload(event.dataTransfer, {
+                          type: 'calendar-timed-task',
+                          taskId: task.id,
+                          durationMinutes,
+                        });
+                      }}
                       className="group pointer-events-auto absolute z-10 min-w-0 overflow-hidden rounded-md px-1.5 py-1 text-[11px] font-semibold leading-tight text-white shadow-sm"
                       style={{
                         backgroundColor: categoryColor(categories, task.categoryId),

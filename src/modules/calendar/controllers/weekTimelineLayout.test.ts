@@ -8,6 +8,7 @@ import {
   buildTimedTaskBlock,
   buildTimedTaskDayLayout,
   buildTimedTaskSegments,
+  getTimelineDropClock,
   getHourFromDropMinute,
   minutesFromDayStart,
   snapMinutes,
@@ -121,8 +122,32 @@ describe('weekTimelineLayout', () => {
     expect(snapMinutes(553)).toBe(555);
   });
 
+  it('snaps invalid raw minutes to the timeline start', () => {
+    expect(snapMinutes(Number.NaN)).toBe(0);
+  });
+
   it('returns the snapped clock time for a drop minute from the 00:00 timeline start', () => {
     expect(getHourFromDropMinute(547)).toEqual({hour: 9, minute: 0});
+  });
+
+  it('converts pointer position inside a timeline cell to a snapped clock time', () => {
+    expect(getTimelineDropClock({
+      date: '2026-06-06',
+      hour: 9,
+      clientY: 149,
+      rectTop: 100,
+      rectHeight: 64,
+    })).toEqual({date: '2026-06-06', hour: 9, minute: 45});
+  });
+
+  it('falls back to the slot hour when a drop event has no usable pointer position', () => {
+    expect(getTimelineDropClock({
+      date: '2026-06-06',
+      hour: 9,
+      clientY: Number.NaN,
+      rectTop: 0,
+      rectHeight: 64,
+    })).toEqual({date: '2026-06-06', hour: 9, minute: 0});
   });
 
   it('builds a focus session block in China local time', () => {

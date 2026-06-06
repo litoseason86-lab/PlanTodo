@@ -2,6 +2,7 @@ import {fireEvent, render, screen} from '@testing-library/react';
 import {describe, expect, it, vi} from 'vitest';
 import type {FormEvent} from 'react';
 
+import {readCalendarDragPayload} from '../../calendar/controllers/schedulingDrag';
 import {TasksPanel} from './TasksPanel';
 
 const baseCategories = [
@@ -41,15 +42,21 @@ function renderPanel(overrides: Partial<TasksPanelProps> = {}) {
     taskFormTitle: '',
     taskFormCategory: 1,
     taskFormDate: '2026-06-05',
+    taskFormUnscheduled: false,
     taskFilterCategory: 'all',
     taskFilterStatus: 'all',
     taskFilterDateScope: 'today',
     setTaskFormTitle: vi.fn(),
     setTaskFormCategory: vi.fn(),
     setTaskFormDate: vi.fn(),
+    setTaskFormUnscheduled: vi.fn(),
     setTaskFilterCategory: vi.fn(),
     setTaskFilterStatus: vi.fn(),
     setTaskFilterDateScope: vi.fn(),
+    showToast: vi.fn(),
+    selectedDate: '2026-06-05',
+    refreshAllTasks: vi.fn().mockResolvedValue(baseTasks),
+    loadTasksForSelectedDate: vi.fn().mockResolvedValue({tasks: baseTasks, sessions: []}),
     handleCreateTask: vi.fn(),
     handleUpdateTaskStatus: vi.fn(),
     handleStartSession: vi.fn(),
@@ -58,6 +65,14 @@ function renderPanel(overrides: Partial<TasksPanelProps> = {}) {
   };
 
   return render(<TasksPanel {...props} />);
+}
+
+function createDragData() {
+  const values = new Map<string, string>();
+  return {
+    setData: (type: string, value: string) => values.set(type, value),
+    getData: (type: string) => values.get(type) ?? '',
+  } as unknown as DataTransfer;
 }
 
 describe('TasksPanel', () => {
@@ -77,15 +92,21 @@ describe('TasksPanel', () => {
         taskFormTitle="写周报"
         taskFormCategory={1}
         taskFormDate="2026-06-05"
+        taskFormUnscheduled={false}
         taskFilterCategory="all"
         taskFilterStatus="all"
         taskFilterDateScope="today"
         setTaskFormTitle={vi.fn()}
         setTaskFormCategory={vi.fn()}
         setTaskFormDate={vi.fn()}
+        setTaskFormUnscheduled={vi.fn()}
         setTaskFilterCategory={vi.fn()}
         setTaskFilterStatus={vi.fn()}
         setTaskFilterDateScope={vi.fn()}
+        showToast={vi.fn()}
+        selectedDate="2026-06-05"
+        refreshAllTasks={vi.fn().mockResolvedValue(baseTasks)}
+        loadTasksForSelectedDate={vi.fn().mockResolvedValue({tasks: baseTasks, sessions: []})}
         handleCreateTask={onCreateTask}
         handleUpdateTaskStatus={vi.fn()}
         handleStartSession={vi.fn()}
@@ -115,15 +136,21 @@ describe('TasksPanel', () => {
         taskFormTitle=""
         taskFormCategory={1}
         taskFormDate="2026-06-05"
+        taskFormUnscheduled={false}
         taskFilterCategory="all"
         taskFilterStatus="all"
         taskFilterDateScope="today"
         setTaskFormTitle={vi.fn()}
         setTaskFormCategory={vi.fn()}
         setTaskFormDate={vi.fn()}
+        setTaskFormUnscheduled={vi.fn()}
         setTaskFilterCategory={vi.fn()}
         setTaskFilterStatus={vi.fn()}
         setTaskFilterDateScope={vi.fn()}
+        showToast={vi.fn()}
+        selectedDate="2026-06-05"
+        refreshAllTasks={vi.fn().mockResolvedValue(baseTasks)}
+        loadTasksForSelectedDate={vi.fn().mockResolvedValue({tasks: baseTasks, sessions: []})}
         handleCreateTask={vi.fn()}
         handleUpdateTaskStatus={onUpdateTaskStatus}
         handleStartSession={onStartSession}
@@ -155,15 +182,21 @@ describe('TasksPanel', () => {
         taskFormTitle=""
         taskFormCategory={1}
         taskFormDate="2026-06-05"
+        taskFormUnscheduled={false}
         taskFilterCategory="all"
         taskFilterStatus="all"
         taskFilterDateScope="today"
         setTaskFormTitle={vi.fn()}
         setTaskFormCategory={vi.fn()}
         setTaskFormDate={vi.fn()}
+        setTaskFormUnscheduled={vi.fn()}
         setTaskFilterCategory={vi.fn()}
         setTaskFilterStatus={vi.fn()}
         setTaskFilterDateScope={vi.fn()}
+        showToast={vi.fn()}
+        selectedDate="2026-06-05"
+        refreshAllTasks={vi.fn().mockResolvedValue(baseTasks)}
+        loadTasksForSelectedDate={vi.fn().mockResolvedValue({tasks: baseTasks, sessions: []})}
         handleCreateTask={vi.fn()}
         handleUpdateTaskStatus={vi.fn()}
         handleStartSession={vi.fn()}
@@ -181,6 +214,29 @@ describe('TasksPanel', () => {
       filteredTaskItems: [{...baseTasks[0], id: 99, title: '未安排任务', plannedDate: undefined}],
     });
 
-    expect(screen.getByText('未安排')).toBeInTheDocument();
+    expect(screen.getAllByText('未安排').length).toBeGreaterThan(0);
+  });
+
+  it('shows an unscheduled filter option', () => {
+    renderPanel({taskFilterDateScope: 'unscheduled'});
+    expect(screen.getByRole('option', {name: '未安排'})).toBeInTheDocument();
+  });
+
+  it('renders an explicit unscheduled create option', () => {
+    renderPanel();
+    expect(screen.getByLabelText('不安排日期')).toBeInTheDocument();
+  });
+
+  it('toggles the embedded calendar', () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', {name: '显示日历'}));
+    expect(screen.getByRole('button', {name: '隐藏日历'})).toBeInTheDocument();
+  });
+
+  it('writes task-list drag payload from the drag handle only', () => {
+    const data = createDragData();
+    renderPanel();
+    fireEvent.dragStart(screen.getByLabelText('拖拽任务 写周报'), {dataTransfer: data});
+    expect(readCalendarDragPayload(data)).toEqual({type: 'calendar-task', taskId: 1, source: 'task-list'});
   });
 });

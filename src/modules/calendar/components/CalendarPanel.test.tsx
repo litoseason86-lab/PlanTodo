@@ -1,15 +1,20 @@
-import {act, fireEvent, render, screen} from '@testing-library/react';
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {calendarApi} from '../api/calendarApi';
+import {writeCalendarDragPayload} from '../controllers/schedulingDrag';
 import {CalendarPanel} from './CalendarPanel';
 
 vi.mock('../api/calendarApi', () => ({
   calendarApi: {
     getCalendarTasks: vi.fn(),
     getFocusSessions: vi.fn(),
+    getUnscheduledTasks: vi.fn(),
+    getAllDayWithoutTimeTasks: vi.fn(),
     createCalendarTask: vi.fn(),
     updateTaskSchedule: vi.fn(),
+    batchScheduleDate: vi.fn(),
+    batchUnschedule: vi.fn(),
   },
 }));
 
@@ -21,10 +26,42 @@ function createDragData() {
   } as unknown as DataTransfer;
 }
 
+function renderCalendarPanel(overrides: Partial<Parameters<typeof CalendarPanel>[0]> = {}) {
+  return render(
+    <CalendarPanel
+      categories={[{id: 1, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''}]}
+      styleContext={{primary: '#fb7185', primaryLight: '#ffe4e6', secondary: '#fda4af'}}
+      showToast={vi.fn()}
+      initialDate="2026-06-06"
+      onMutationSuccess={vi.fn().mockResolvedValue(undefined)}
+      {...overrides}
+    />,
+  );
+}
+
+function renderCalendarPanelWithSidebarTasks(overrides: Partial<Parameters<typeof CalendarPanel>[0]> = {}) {
+  vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+  vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+  vi.mocked(calendarApi.getUnscheduledTasks).mockResolvedValue([
+    {id: 10, userId: 1, categoryId: 1, title: '未安排任务', plannedDate: undefined, allDay: true, status: 'TODO', createdAt: '', updatedAt: ''},
+  ] as never);
+  vi.mocked(calendarApi.getAllDayWithoutTimeTasks).mockResolvedValue([
+    {id: 11, userId: 1, categoryId: 1, title: '全天任务', plannedDate: '2026-06-06', allDay: true, status: 'TODO', createdAt: '', updatedAt: ''},
+  ] as never);
+  return renderCalendarPanel(overrides);
+}
+
 describe('CalendarPanel', () => {
   afterEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+  });
+
+  beforeEach(() => {
+    vi.mocked(calendarApi.getUnscheduledTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getAllDayWithoutTimeTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.batchScheduleDate).mockResolvedValue([]);
+    vi.mocked(calendarApi.batchUnschedule).mockResolvedValue([]);
   });
 
   it('renders calendar shell and view switcher', () => {
@@ -44,6 +81,49 @@ describe('CalendarPanel', () => {
     expect(screen.getByRole('button', {name: '月'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: '周'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: '列表'})).toBeInTheDocument();
+  });
+
+  it('renders scheduling sidebar and loads both task pool sources', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.getUnscheduledTasks).mockResolvedValue([{id: 10, title: '未安排任务'}] as never);
+    vi.mocked(calendarApi.getAllDayWithoutTimeTasks).mockResolvedValue([{id: 11, title: '全天任务'}] as never);
+    renderCalendarPanel();
+    expect(await screen.findByText('未安排任务')).toBeInTheDocument();
+    expect(await screen.findByText('全天任务')).toBeInTheDocument();
+  });
+
+  it('batch schedules selected sidebar tasks onto a month date', async () => {
+    vi.mocked(calendarApi.batchScheduleDate).mockResolvedValue([{id: 10}, {id: 11}] as never);
+    renderCalendarPanelWithSidebarTasks();
+    fireEvent.click(await screen.findByLabelText('选择 未安排任务'));
+    fireEvent.click(await screen.findByLabelText('选择 全天任务'));
+    const data = createDragData();
+    fireEvent.dragStart(screen.getByLabelText('拖拽 未安排任务'), {dataTransfer: data});
+    fireEvent.click(screen.getByRole('button', {name: '月'}));
+    fireEvent.drop(screen.getByRole('button', {name: '2026-06-08'}), {dataTransfer: data});
+    expect(calendarApi.batchScheduleDate).toHaveBeenCalledWith({taskIds: [10, 11], plannedDate: '2026-06-08'});
+  });
+
+  it('rejects batch task payloads on week time slots', async () => {
+    const showToast = vi.fn();
+    renderCalendarPanelWithSidebarTasks({showToast});
+    fireEvent.click(await screen.findByLabelText('选择 未安排任务'));
+    fireEvent.click(await screen.findByLabelText('选择 全天任务'));
+    const data = createDragData();
+    fireEvent.dragStart(screen.getByLabelText('拖拽 未安排任务'), {dataTransfer: data});
+    fireEvent.drop(screen.getByLabelText('2026-06-06 09:00'), {dataTransfer: data});
+    expect(showToast).toHaveBeenCalledWith('批量任务只能安排到日期', 'error');
+  });
+
+  it('runs app-level mutation refresh after calendar scheduling succeeds', async () => {
+    const onMutationSuccess = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(calendarApi.updateTaskSchedule).mockResolvedValue({id: 1} as never);
+    renderCalendarPanelWithSidebarTasks({onMutationSuccess});
+    const data = createDragData();
+    fireEvent.dragStart(await screen.findByLabelText('拖拽 未安排任务'), {dataTransfer: data});
+    fireEvent.drop(screen.getByLabelText('2026-06-06 全天'), {dataTransfer: data});
+    await waitFor(() => expect(onMutationSuccess).toHaveBeenCalledOnce());
   });
 
   it('renders month tasks', async () => {
@@ -151,19 +231,19 @@ describe('CalendarPanel', () => {
       />,
     );
 
-    const task = await screen.findByText('安排会议');
+    await screen.findByText('安排会议');
     const target = screen.getByLabelText('2026-06-06 09:00');
     const data = createDragData();
 
-    fireEvent.dragStart(task, {dataTransfer: data});
+    writeCalendarDragPayload(data, {type: 'calendar-task', taskId: 1, source: 'calendar'});
     fireEvent.drop(target, {dataTransfer: data});
 
-    expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, expect.objectContaining({
+    await waitFor(() => expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, expect.objectContaining({
       plannedDate: '2026-06-06',
       startAt: '2026-06-06T09:00:00.000',
       endAt: '2026-06-06T10:00:00.000',
       allDay: false,
-    }));
+    })));
   });
 
   it('moves a timed task on the week timeline while preserving duration', async () => {
@@ -194,19 +274,19 @@ describe('CalendarPanel', () => {
       />,
     );
 
-    const task = await screen.findByText('09:00-10:30 时间段任务');
+    await screen.findByText('09:00-10:30 时间段任务');
     const target = screen.getByLabelText('2026-06-07 14:00');
     const data = createDragData();
 
-    fireEvent.dragStart(task, {dataTransfer: data});
+    writeCalendarDragPayload(data, {type: 'calendar-timed-task', taskId: 1, durationMinutes: 90});
     fireEvent.drop(target, {dataTransfer: data});
 
-    expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, expect.objectContaining({
+    await waitFor(() => expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, expect.objectContaining({
       plannedDate: '2026-06-07',
       startAt: '2026-06-07T14:00:00.000',
       endAt: '2026-06-07T15:30:00.000',
       allDay: false,
-    }));
+    })));
   });
 
   it('renders a same-day timed task as one continuous block', async () => {

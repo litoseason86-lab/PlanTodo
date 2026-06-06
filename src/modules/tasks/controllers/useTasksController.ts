@@ -7,7 +7,7 @@ import {addIsoDateDays} from '../../../../shared/lib/date';
 export interface TaskFilterState {
   category: string;
   status: 'all' | TaskStatus;
-  dateScope: 'today' | 'seven-days' | 'all';
+  dateScope: 'today' | 'seven-days' | 'all' | 'unscheduled';
   selectedDate: string;
 }
 
@@ -23,6 +23,10 @@ export function filterTasks(tasks: Task[], filters: TaskFilterState): Task[] {
 
     if (filters.dateScope === 'today') {
       return task.plannedDate === filters.selectedDate;
+    }
+
+    if (filters.dateScope === 'unscheduled') {
+      return !task.plannedDate;
     }
 
     if (filters.dateScope === 'seven-days') {
