@@ -1,4 +1,4 @@
-import {useEffect, useState, type DragEvent} from 'react';
+import {useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent} from 'react';
 
 import type {Category, Task, TaskExecutionSession} from '../../../../shared/domain/entities';
 import {toIsoDate} from '../../../../shared/lib/date';
@@ -6,13 +6,22 @@ import {focusSessionDurationMinutes, isCountedFocusSession} from '../../../../sh
 import {buildWeekAllDaySegments, buildWeekDays} from '../controllers/calendarLayout';
 import {
   TIMELINE_END_HOUR,
-  TIMELINE_SLOT_MINUTES,
   TIMELINE_START_HOUR,
   buildTimedTaskDayLayout,
   getTimelineDropClock,
   timedTaskDurationMinutes,
   type TimedTaskDayLayoutSegment,
 } from '../controllers/weekTimelineLayout';
+import {
+  buildAllDayQuickCreateDraft,
+  buildTimedQuickCreateDraftFromDrag,
+  buildTimedQuickCreateDraftFromPoint,
+  canResizeTimedTask,
+  getResizeDurationMinutes,
+  hourHeightForDensity,
+  type CalendarQuickCreateDraft,
+  type WeekTimelineDensity,
+} from '../controllers/weekTimelineInteraction';
 import {readCalendarDragPayload, writeCalendarDragPayload} from '../controllers/schedulingDrag';
 
 const HOURS = Array.from({length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1}, (_, index) => index + TIMELINE_START_HOUR);
@@ -36,6 +45,9 @@ interface WeekTimelineViewProps {
   onMoveTimedTask: (input: {taskId: number; date: string; hour: number; minute: number; durationMinutes: number}) => Promise<boolean>;
   onResizeTimedTask: (input: {taskId: number; plannedDate: string; startAt: string; durationMinutes: number}) => Promise<boolean>;
   onRejectBatchTimeDrop: () => void;
+  enableQuickCreate?: boolean;
+  weekTimelineDensity?: WeekTimelineDensity;
+  onOpenQuickCreate?: (draft: CalendarQuickCreateDraft) => void;
 }
 
 interface ResizeState {
@@ -44,6 +56,19 @@ interface ResizeState {
   startAt: string;
   initialDurationMinutes: number;
   startY: number;
+}
+
+interface TimeQuickCreatePointerState {
+  date: string;
+  hour: number;
+  clientX: number;
+  clientY: number;
+  rectTop: number;
+}
+
+interface AllDayQuickCreatePointerState {
+  startDate: string;
+  anchor: {x: number; y: number};
 }
 
 function categoryColor(categories: Category[], categoryId: number): string {
@@ -102,15 +127,6 @@ function timelineLaneStyle(segment: TimedTaskDayLayoutSegment) {
   };
 }
 
-function getResizeDurationMinutes(input: {
-  initialDurationMinutes: number;
-  startY: number;
-  currentY: number;
-}): number {
-  const deltaMinutes = Math.round((input.currentY - input.startY) / TIMELINE_SLOT_MINUTES) * TIMELINE_SLOT_MINUTES;
-  return Math.max(TIMELINE_SLOT_MINUTES, input.initialDurationMinutes + deltaMinutes);
-}
-
 function focusDate(session: TaskExecutionSession): string {
   return toIsoDate(new Date(session.startedAt));
 }
@@ -164,8 +180,12 @@ export function WeekTimelineView({
   onMoveTimedTask,
   onResizeTimedTask,
   onRejectBatchTimeDrop,
+  enableQuickCreate = false,
+  weekTimelineDensity = 'standard',
+  onOpenQuickCreate = () => {},
 }: WeekTimelineViewProps) {
   const days = buildWeekDays(anchorDate);
+  const hourHeight = hourHeightForDensity(weekTimelineDensity);
   const weekDateFrom = days[0].isoDate;
   const weekDateTo = days[days.length - 1].isoDate;
   const allDayTaskById = new Map<number, Task>();
@@ -192,9 +212,12 @@ export function WeekTimelineView({
     8
   );
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
+  const timeQuickCreatePointerRef = useRef<TimeQuickCreatePointerState | null>(null);
+  const allDayQuickCreatePointerRef = useRef<AllDayQuickCreatePointerState | null>(null);
 
   const handleAllDayDrop = (event: DragEvent<HTMLElement>, date: string) => {
     event.preventDefault();
+    allDayQuickCreatePointerRef.current = null;
     const payload = readCalendarDragPayload(event.dataTransfer);
     if (!payload) return;
     if (payload.type === 'calendar-task-batch') {
@@ -202,6 +225,79 @@ export function WeekTimelineView({
       return;
     }
     void onScheduleDate(payload.taskId, date);
+  };
+
+  const handleAllDayPointerDown = (event: ReactPointerEvent<HTMLElement>, date: string) => {
+    if (!enableQuickCreate || event.button > 0) {
+      return;
+    }
+    allDayQuickCreatePointerRef.current = {
+      startDate: date,
+      anchor: {x: event.clientX, y: event.clientY},
+    };
+  };
+
+  const handleAllDayPointerUp = (date: string) => {
+    const pointer = allDayQuickCreatePointerRef.current;
+    if (!enableQuickCreate || !pointer) {
+      return;
+    }
+    onOpenQuickCreate(buildAllDayQuickCreateDraft({
+      startDate: pointer.startDate,
+      endDate: date,
+      anchor: pointer.anchor,
+    }));
+    allDayQuickCreatePointerRef.current = null;
+  };
+
+  const handleTimeSlotPointerDown = (event: ReactPointerEvent<HTMLElement>, date: string, hour: number) => {
+    if (!enableQuickCreate || event.button > 0) {
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    timeQuickCreatePointerRef.current = {
+      date,
+      hour,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      rectTop: rect.top,
+    };
+  };
+
+  const handleTimeSlotPointerUp = (event: ReactPointerEvent<HTMLElement>, date: string, hour: number) => {
+    const pointer = timeQuickCreatePointerRef.current;
+    if (!enableQuickCreate || !pointer || pointer.date !== date) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const isPointCreate = (
+      pointer.hour === hour &&
+      Math.abs(event.clientY - pointer.clientY) < 4
+    );
+    const draft = isPointCreate
+      ? buildTimedQuickCreateDraftFromPoint({
+        date,
+        hour,
+        clientY: event.clientY,
+        rectTop: rect.top,
+        hourHeight,
+        anchor: {x: pointer.clientX, y: pointer.clientY},
+      })
+      : buildTimedQuickCreateDraftFromDrag({
+        date,
+        startHour: pointer.hour,
+        startClientY: pointer.clientY,
+        endHour: hour,
+        endClientY: event.clientY,
+        startRectTop: pointer.rectTop,
+        endRectTop: rect.top,
+        hourHeight,
+        anchor: {x: pointer.clientX, y: pointer.clientY},
+      });
+
+    onOpenQuickCreate(draft);
+    timeQuickCreatePointerRef.current = null;
   };
 
   useEffect(() => {
@@ -214,6 +310,7 @@ export function WeekTimelineView({
         initialDurationMinutes: resizeState.initialDurationMinutes,
         startY: resizeState.startY,
         currentY: event.clientY,
+        hourHeight,
       });
       void onResizeTimedTask({
         taskId: resizeState.taskId,
@@ -229,7 +326,7 @@ export function WeekTimelineView({
     return () => {
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [onResizeTimedTask, resizeState]);
+  }, [hourHeight, onResizeTimedTask, resizeState]);
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -244,6 +341,8 @@ export function WeekTimelineView({
               aria-label={`${day.isoDate} 全天`}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => handleAllDayDrop(event, day.isoDate)}
+              onPointerDown={(event) => handleAllDayPointerDown(event, day.isoDate)}
+              onPointerUp={() => handleAllDayPointerUp(day.isoDate)}
               className="border-l border-slate-100 p-2"
               style={{minHeight: allDayHeaderMinHeight}}
             >
@@ -301,7 +400,11 @@ export function WeekTimelineView({
       <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))]">
         <div>
           {HOURS.map((hour) => (
-            <div key={hour} className="h-16 border-b border-slate-100 p-2 text-xs font-semibold text-slate-400">
+            <div
+              key={hour}
+              className="border-b border-slate-100 p-2 text-xs font-semibold text-slate-400"
+              style={{height: hourHeight}}
+            >
               {String(hour).padStart(2, '0')}:00
             </div>
           ))}
@@ -327,8 +430,11 @@ export function WeekTimelineView({
                 <div
                   key={`${day.isoDate}-${hour}`}
                   aria-label={`${day.isoDate} ${String(hour).padStart(2, '0')}:00`}
+                  onPointerDown={(event) => handleTimeSlotPointerDown(event, day.isoDate, hour)}
+                  onPointerUp={(event) => handleTimeSlotPointerUp(event, day.isoDate, hour)}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => {
+                    timeQuickCreatePointerRef.current = null;
                     event.preventDefault();
                     const payload = readCalendarDragPayload(event.dataTransfer);
                     if (!payload) {
@@ -358,7 +464,8 @@ export function WeekTimelineView({
                     }
                     void onScheduleTime({taskId: payload.taskId, date: clock.date, hour: clock.hour, minute: clock.minute});
                   }}
-                  className="h-16 border-b border-slate-100"
+                  className="border-b border-slate-100"
+                  style={{height: hourHeight}}
                 />
               ))}
               <div className="pointer-events-none absolute inset-0">
@@ -400,7 +507,7 @@ export function WeekTimelineView({
                           专注 {taskFocusMinutes}m
                         </div>
                       )}
-                      {segment.isLastSegment && (
+                      {segment.isLastSegment && canResizeTimedTask(task.startAt) && (
                         <button
                           type="button"
                           aria-label={`调整${task.title}时长`}

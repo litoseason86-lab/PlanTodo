@@ -1,4 +1,4 @@
-import {createEvent, fireEvent, render, screen} from '@testing-library/react';
+import {act, createEvent, fireEvent, render, screen} from '@testing-library/react';
 import {describe, expect, it, vi} from 'vitest';
 
 import {writeCalendarDragPayload} from '../controllers/schedulingDrag';
@@ -44,6 +44,18 @@ function mockElementRect(element: HTMLElement, rect: Partial<DOMRect>) {
   } as DOMRect);
 }
 
+function dispatchWindowPointerUp(clientY: number) {
+  window.dispatchEvent(new MouseEvent('pointerup', {bubbles: true, clientY}));
+}
+
+function dispatchElementPointerDown(element: Element, clientY: number, clientX = 0) {
+  element.dispatchEvent(new MouseEvent('pointerdown', {bubbles: true, clientX, clientY}));
+}
+
+function dispatchElementPointerUp(element: Element, clientY: number, clientX = 0) {
+  element.dispatchEvent(new MouseEvent('pointerup', {bubbles: true, clientX, clientY}));
+}
+
 function renderWeek(overrides: Partial<Parameters<typeof WeekTimelineView>[0]> = {}) {
   return render(
     <WeekTimelineView
@@ -58,6 +70,9 @@ function renderWeek(overrides: Partial<Parameters<typeof WeekTimelineView>[0]> =
       onMoveTimedTask={vi.fn().mockResolvedValue(true)}
       onResizeTimedTask={vi.fn().mockResolvedValue(true)}
       onRejectBatchTimeDrop={vi.fn()}
+      enableQuickCreate={false}
+      weekTimelineDensity="standard"
+      onOpenQuickCreate={vi.fn()}
       {...overrides}
     />,
   );
@@ -78,6 +93,9 @@ describe('WeekTimelineView', () => {
         onMoveTimedTask={vi.fn().mockResolvedValue(undefined)}
         onResizeTimedTask={vi.fn().mockResolvedValue(undefined)}
         onRejectBatchTimeDrop={vi.fn()}
+        enableQuickCreate={false}
+        weekTimelineDensity="standard"
+        onOpenQuickCreate={vi.fn()}
       />,
     );
 
@@ -91,6 +109,121 @@ describe('WeekTimelineView', () => {
     writeCalendarDragPayload(data, {type: 'calendar-task', taskId: 1, source: 'sidebar'});
     fireEvent.drop(screen.getByLabelText('2026-06-06 全天'), {dataTransfer: data});
     expect(onScheduleDate).toHaveBeenCalledWith(1, '2026-06-06');
+  });
+
+  it('opens quick create from a week time slot when enabled', () => {
+    const onOpenQuickCreate = vi.fn();
+    renderWeek({enableQuickCreate: true, onOpenQuickCreate});
+    const slot = screen.getByLabelText('2026-06-06 09:00');
+    mockElementRect(slot, {top: 100, height: 64});
+
+    act(() => {
+      dispatchElementPointerDown(slot, 100, 20);
+      dispatchElementPointerUp(slot, 100, 20);
+    });
+
+    expect(onOpenQuickCreate).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'timed',
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+    }));
+  });
+
+  it('does not open quick create when disabled', () => {
+    const onOpenQuickCreate = vi.fn();
+    renderWeek({enableQuickCreate: false, onOpenQuickCreate});
+    const slot = screen.getByLabelText('2026-06-06 09:00');
+    mockElementRect(slot, {top: 100, height: 64});
+
+    act(() => {
+      dispatchElementPointerDown(slot, 100, 20);
+      dispatchElementPointerUp(slot, 100, 20);
+    });
+
+    expect(onOpenQuickCreate).not.toHaveBeenCalled();
+  });
+
+  it('opens all-day quick create from a dragged all-day date range', () => {
+    const onOpenQuickCreate = vi.fn();
+    renderWeek({enableQuickCreate: true, onOpenQuickCreate});
+
+    act(() => {
+      dispatchElementPointerDown(screen.getByLabelText('2026-06-04 全天'), 20, 10);
+      dispatchElementPointerUp(screen.getByLabelText('2026-06-06 全天'), 20, 50);
+    });
+
+    expect(onOpenQuickCreate).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'all-day',
+      plannedDate: '2026-06-04',
+      plannedEndDate: '2026-06-06',
+    }));
+  });
+
+  it('does not open quick create for external drop payloads', () => {
+    const onOpenQuickCreate = vi.fn();
+    renderWeek({enableQuickCreate: true, onOpenQuickCreate});
+    const data = createDragData();
+    writeCalendarDragPayload(data, {type: 'calendar-task', taskId: 1, source: 'sidebar'});
+
+    fireEvent.drop(screen.getByLabelText('2026-06-06 09:00'), {dataTransfer: data});
+
+    expect(onOpenQuickCreate).not.toHaveBeenCalled();
+  });
+
+  it('uses density height for timeline rows', () => {
+    renderWeek({weekTimelineDensity: 'comfortable'});
+    expect(screen.getByLabelText('2026-06-06 09:00')).toHaveStyle({height: '88px'});
+  });
+
+  it('uses density height when converting a quick-create pointer offset', () => {
+    const onOpenQuickCreate = vi.fn();
+    renderWeek({enableQuickCreate: true, weekTimelineDensity: 'comfortable', onOpenQuickCreate});
+    const slot = screen.getByLabelText('2026-06-06 09:00');
+    mockElementRect(slot, {top: 100, height: 88});
+
+    act(() => {
+      dispatchElementPointerDown(slot, 144, 20);
+      dispatchElementPointerUp(slot, 144, 20);
+    });
+
+    expect(onOpenQuickCreate).toHaveBeenCalledWith(expect.objectContaining({
+      startAt: '2026-06-06T09:30:00.000',
+      endAt: '2026-06-06T10:30:00.000',
+    }));
+  });
+
+  it('uses density height when converting resize pointer movement', () => {
+    const onResizeTimedTask = vi.fn().mockResolvedValue(true);
+    renderWeek({
+      weekTimelineDensity: 'comfortable',
+      onResizeTimedTask,
+      tasksByDate: {
+        '2026-06-06': [{
+          ...task,
+          id: 2,
+          title: '时间段任务',
+          plannedDate: '2026-06-06',
+          allDay: false,
+          startAt: '2026-06-06T09:00:00.000',
+          endAt: '2026-06-06T10:00:00.000',
+        }],
+      },
+    });
+
+    act(() => {
+      dispatchElementPointerDown(screen.getByLabelText('调整时间段任务时长'), 100);
+    });
+    act(() => {
+      dispatchWindowPointerUp(144);
+    });
+
+    expect(onResizeTimedTask).toHaveBeenCalledWith(expect.objectContaining({
+      taskId: 2,
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      durationMinutes: 90,
+    }));
   });
 
   it('renders duplicated cross-day all-day tasks as one continuous segment', () => {

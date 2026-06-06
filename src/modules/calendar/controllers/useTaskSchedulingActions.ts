@@ -22,6 +22,14 @@ function defaultTimedTaskEndAt(date: string, hour: number, minute: number): stri
   return makeLocalDateTime(date, Math.floor(endMinutes / 60), endMinutes % 60);
 }
 
+function addDurationWithinDay(startAt: string, durationMinutes: number): string {
+  const date = startAt.slice(0, 10);
+  const startMinutes = Number(startAt.slice(11, 13)) * 60 + Number(startAt.slice(14, 16));
+  const endMinutes = Math.min(23 * 60 + 59, startMinutes + durationMinutes);
+
+  return makeLocalDateTime(date, Math.floor(endMinutes / 60), endMinutes % 60);
+}
+
 export function useTaskSchedulingActions({
   showToast,
   refreshCalendarData,
@@ -87,16 +95,36 @@ export function useTaskSchedulingActions({
   }
 
   async function resizeTimedTask(input: {taskId: number; plannedDate: string; startAt: string; durationMinutes: number}): Promise<boolean> {
-    return persistMutation(() => {
-      const endAt = addMinutesToLocalDateTime(input.startAt, input.durationMinutes);
-      return calendarApi.updateTaskSchedule(input.taskId, {
+    try {
+      const endAt = addDurationWithinDay(input.startAt, input.durationMinutes);
+      await calendarApi.updateTaskSchedule(input.taskId, {
         plannedDate: input.plannedDate,
         plannedEndDate: undefined,
         startAt: input.startAt,
         endAt,
         allDay: false,
       });
-    }, '排期更新失败');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '排期更新失败', 'error');
+      try {
+        await refreshCalendarData();
+      } catch (refreshError) {
+        showToast(refreshError instanceof Error ? refreshError.message : '日历数据刷新失败', 'error');
+      }
+      return false;
+    }
+
+    try {
+      await refreshCalendarData();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '日历数据刷新失败', 'error');
+    }
+    try {
+      await onMutationSuccess?.();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '日历数据刷新失败', 'error');
+    }
+    return true;
   }
 
   async function batchScheduleDate(input: {taskIds: number[]; date: string}): Promise<boolean> {

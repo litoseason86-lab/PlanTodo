@@ -139,4 +139,43 @@ describe('useTaskSchedulingActions', () => {
     expect(refreshCalendarData).toHaveBeenCalledOnce();
     expect(showToast).toHaveBeenCalledWith('同步失败', 'error');
   });
+
+  it('resizes a task without crossing the day boundary', async () => {
+    const {result} = renderHook(() => useTaskSchedulingActions({
+      showToast: vi.fn(),
+      refreshCalendarData: vi.fn().mockResolvedValue(undefined),
+    }));
+    vi.mocked(calendarApi.updateTaskSchedule).mockResolvedValue({id: 1} as never);
+
+    await result.current.resizeTimedTask({
+      taskId: 1,
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T23:00:00.000',
+      durationMinutes: 90,
+    });
+
+    expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, expect.objectContaining({
+      endAt: '2026-06-06T23:59:00.000',
+    }));
+  });
+
+  it('refreshes calendar data after a failed resize mutation', async () => {
+    const showToast = vi.fn();
+    const refreshCalendarData = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(calendarApi.updateTaskSchedule).mockRejectedValue(new Error('调整失败'));
+    const {result} = renderHook(() => useTaskSchedulingActions({
+      showToast,
+      refreshCalendarData,
+    }));
+
+    await expect(result.current.resizeTimedTask({
+      taskId: 1,
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      durationMinutes: 120,
+    })).resolves.toBe(false);
+
+    expect(showToast).toHaveBeenCalledWith('调整失败', 'error');
+    expect(refreshCalendarData).toHaveBeenCalledOnce();
+  });
 });
