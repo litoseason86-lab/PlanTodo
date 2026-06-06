@@ -49,7 +49,7 @@ describe('openSqliteClient', () => {
     const second = openSqliteClient(sqliteFile.filePath);
     const migrations = second.prepare('select version from schema_migrations order by version').all();
 
-    expect(migrations).toEqual([{version: 1}, {version: 2}]);
+    expect(migrations).toEqual([{version: 1}, {version: 2}, {version: 3}]);
 
     second.close();
   });
