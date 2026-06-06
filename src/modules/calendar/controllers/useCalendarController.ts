@@ -10,6 +10,7 @@ import {
   saveCalendarSettings,
   type CalendarSettings,
 } from './calendarSettings';
+import type {CalendarQuickCreateDraft, WeekTimelineDensity} from './weekTimelineInteraction';
 import {useTaskSchedulingActions} from './useTaskSchedulingActions';
 
 interface UseCalendarControllerArgs {
@@ -25,6 +26,7 @@ export function useCalendarController({categories, initialDate, showToast, onMut
   const [view, setView] = useState<CalendarView>('week');
   const [anchorDate, setAnchorDate] = useState(() => initialDate ?? toIsoDate(new Date()));
   const [settings, setSettingsState] = useState<CalendarSettings>(() => loadCalendarSettings());
+  const [quickCreateDraft, setQuickCreateDraft] = useState<CalendarQuickCreateDraft | undefined>();
   const [rawTasks, setRawTasks] = useState<Task[]>([]);
   const [focusSessions, setFocusSessions] = useState<TaskExecutionSession[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,6 +44,18 @@ export function useCalendarController({categories, initialDate, showToast, onMut
     setSettingsState(next);
     saveCalendarSettings(next);
   }, []);
+
+  function openQuickCreateDraft(draft: CalendarQuickCreateDraft): void {
+    setQuickCreateDraft(draft);
+  }
+
+  function closeQuickCreateDraft(): void {
+    setQuickCreateDraft(undefined);
+  }
+
+  function setWeekTimelineDensity(density: WeekTimelineDensity): void {
+    setSettings({...settingsRef.current, weekTimelineDensity: density});
+  }
 
   useEffect(() => {
     showToastRef.current = showToast;
@@ -122,6 +136,43 @@ export function useCalendarController({categories, initialDate, showToast, onMut
     }
   }
 
+  async function submitQuickCreateDraft(input: {title: string; categoryId: number}): Promise<{ok: true} | {ok: false; message: string}> {
+    if (!quickCreateDraft) {
+      return {ok: false, message: '没有可创建的任务'};
+    }
+    const title = input.title.trim();
+    if (!title) {
+      return {ok: false, message: '请输入任务标题'};
+    }
+
+    try {
+      await calendarApi.createCalendarTask({
+        title,
+        categoryId: input.categoryId,
+        plannedDate: quickCreateDraft.plannedDate,
+        plannedEndDate: quickCreateDraft.kind === 'all-day' ? quickCreateDraft.plannedEndDate : undefined,
+        startAt: quickCreateDraft.kind === 'timed' ? quickCreateDraft.startAt : undefined,
+        endAt: quickCreateDraft.kind === 'timed' ? quickCreateDraft.endAt : undefined,
+        allDay: quickCreateDraft.kind === 'all-day',
+      });
+    } catch (error) {
+      return {ok: false, message: error instanceof Error ? error.message : '任务创建失败'};
+    }
+
+    setQuickCreateDraft(undefined);
+    try {
+      await refreshCalendarData();
+    } catch (error) {
+      showToastRef.current(error instanceof Error ? error.message : '日历数据刷新失败', 'error');
+    }
+    try {
+      await onMutationSuccess?.();
+    } catch (error) {
+      showToastRef.current(error instanceof Error ? error.message : '日历数据刷新失败', 'error');
+    }
+    return {ok: true};
+  }
+
   return {
     view,
     setView,
@@ -130,6 +181,11 @@ export function useCalendarController({categories, initialDate, showToast, onMut
     range,
     settings,
     setSettings,
+    setWeekTimelineDensity,
+    quickCreateDraft,
+    openQuickCreateDraft,
+    closeQuickCreateDraft,
+    submitQuickCreateDraft,
     categories,
     rawTasks,
     tasks,

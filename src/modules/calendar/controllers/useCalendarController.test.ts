@@ -382,4 +382,179 @@ describe('useCalendarController', () => {
       categoryId: undefined,
     });
   });
+
+  it('opens and closes a quick create draft', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+    }));
+
+    act(() => result.current.openQuickCreateDraft({
+      kind: 'timed',
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      anchor: {x: 10, y: 20},
+    }));
+
+    expect(result.current.quickCreateDraft).toMatchObject({kind: 'timed'});
+
+    act(() => result.current.closeQuickCreateDraft());
+    expect(result.current.quickCreateDraft).toBeUndefined();
+  });
+
+  it('submits a timed quick create draft through calendarApi', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.createCalendarTask).mockResolvedValue({id: 1} as never);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [{id: 8, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''}],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+    }));
+
+    act(() => result.current.openQuickCreateDraft({
+      kind: 'timed',
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      anchor: {x: 10, y: 20},
+    }));
+
+    await act(async () => {
+      const resultValue = await result.current.submitQuickCreateDraft({
+        title: '写方案',
+        categoryId: 8,
+      });
+      expect(resultValue).toEqual({ok: true});
+    });
+
+    expect(calendarApi.createCalendarTask).toHaveBeenCalledWith({
+      title: '写方案',
+      categoryId: 8,
+      plannedDate: '2026-06-06',
+      plannedEndDate: undefined,
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      allDay: false,
+    });
+    expect(result.current.quickCreateDraft).toBeUndefined();
+  });
+
+  it('submits an all-day quick create draft through calendarApi', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.createCalendarTask).mockResolvedValue({id: 1} as never);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [{id: 8, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''}],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+    }));
+
+    act(() => result.current.openQuickCreateDraft({
+      kind: 'all-day',
+      plannedDate: '2026-06-18',
+      plannedEndDate: '2026-06-21',
+      anchor: {x: 10, y: 20},
+    }));
+
+    await act(async () => {
+      const resultValue = await result.current.submitQuickCreateDraft({
+        title: '跨天事项',
+        categoryId: 8,
+      });
+      expect(resultValue).toEqual({ok: true});
+    });
+
+    expect(calendarApi.createCalendarTask).toHaveBeenCalledWith({
+      title: '跨天事项',
+      categoryId: 8,
+      plannedDate: '2026-06-18',
+      plannedEndDate: '2026-06-21',
+      startAt: undefined,
+      endAt: undefined,
+      allDay: true,
+    });
+  });
+
+  it('keeps the quick create draft and returns an error when create fails', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.createCalendarTask).mockRejectedValue(new Error('创建失败'));
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [{id: 8, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''}],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+    }));
+
+    act(() => result.current.openQuickCreateDraft({
+      kind: 'timed',
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      anchor: {x: 10, y: 20},
+    }));
+
+    await act(async () => {
+      await expect(result.current.submitQuickCreateDraft({
+        title: '写方案',
+        categoryId: 8,
+      })).resolves.toEqual({ok: false, message: '创建失败'});
+    });
+
+    expect(result.current.quickCreateDraft).toMatchObject({kind: 'timed'});
+  });
+
+  it('closes quick create and returns success when post-create refresh fails', async () => {
+    const showToast = vi.fn();
+    vi.mocked(calendarApi.getCalendarTasks).mockRejectedValue(new Error('刷新失败'));
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.createCalendarTask).mockResolvedValue({id: 1} as never);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [{id: 8, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''}],
+      initialDate: '2026-06-06',
+      showToast,
+    }));
+
+    act(() => result.current.openQuickCreateDraft({
+      kind: 'timed',
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      anchor: {x: 10, y: 20},
+    }));
+
+    await act(async () => {
+      await expect(result.current.submitQuickCreateDraft({
+        title: '写方案',
+        categoryId: 8,
+      })).resolves.toEqual({ok: true});
+    });
+
+    expect(result.current.quickCreateDraft).toBeUndefined();
+    expect(showToast).toHaveBeenCalledWith('刷新失败', 'error');
+  });
+
+  it('stores week timeline density through calendar settings', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+    }));
+
+    act(() => result.current.setWeekTimelineDensity('comfortable'));
+
+    expect(result.current.settings.weekTimelineDensity).toBe('comfortable');
+  });
 });

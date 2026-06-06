@@ -18,6 +18,16 @@ export interface CalendarTaskPoolFilters {
 
 export interface CalendarAllDayWithoutTimeFilters extends CalendarRange, CalendarTaskPoolFilters {}
 
+export interface CalendarCreateTaskInput {
+  title: string;
+  categoryId: number;
+  plannedDate: string;
+  plannedEndDate?: string;
+  startAt?: string;
+  endAt?: string;
+  allDay: boolean;
+}
+
 export const calendarApi = {
   getCalendarTasks(filters: CalendarTaskFilters): Promise<Task[]> {
     return tasksApi.getTasks(filters);
@@ -31,7 +41,7 @@ export const calendarApi = {
     return tasksApi.getTasks({...filters, scheduled: 'all-day-without-time'});
   },
 
-  createCalendarTask(input: {title: string; categoryId: number; plannedDate: string; allDay: true}): Promise<Task> {
+  createCalendarTask(input: CalendarCreateTaskInput): Promise<Task> {
     return tasksApi.createTask(input);
   },
 
