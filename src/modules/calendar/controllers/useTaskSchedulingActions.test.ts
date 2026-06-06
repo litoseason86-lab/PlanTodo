@@ -162,10 +162,12 @@ describe('useTaskSchedulingActions', () => {
   it('refreshes calendar data after a failed resize mutation', async () => {
     const showToast = vi.fn();
     const refreshCalendarData = vi.fn().mockResolvedValue(undefined);
+    const onMutationSuccess = vi.fn();
     vi.mocked(calendarApi.updateTaskSchedule).mockRejectedValue(new Error('调整失败'));
     const {result} = renderHook(() => useTaskSchedulingActions({
       showToast,
       refreshCalendarData,
+      onMutationSuccess,
     }));
 
     await expect(result.current.resizeTimedTask({
@@ -177,5 +179,6 @@ describe('useTaskSchedulingActions', () => {
 
     expect(showToast).toHaveBeenCalledWith('调整失败', 'error');
     expect(refreshCalendarData).toHaveBeenCalledOnce();
+    expect(onMutationSuccess).not.toHaveBeenCalled();
   });
 });

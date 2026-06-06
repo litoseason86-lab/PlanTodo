@@ -215,9 +215,14 @@ export function WeekTimelineView({
   const timeQuickCreatePointerRef = useRef<TimeQuickCreatePointerState | null>(null);
   const allDayQuickCreatePointerRef = useRef<AllDayQuickCreatePointerState | null>(null);
 
+  const clearQuickCreatePointers = () => {
+    timeQuickCreatePointerRef.current = null;
+    allDayQuickCreatePointerRef.current = null;
+  };
+
   const handleAllDayDrop = (event: DragEvent<HTMLElement>, date: string) => {
     event.preventDefault();
-    allDayQuickCreatePointerRef.current = null;
+    clearQuickCreatePointers();
     const payload = readCalendarDragPayload(event.dataTransfer);
     if (!payload) return;
     if (payload.type === 'calendar-task-batch') {
@@ -229,8 +234,10 @@ export function WeekTimelineView({
 
   const handleAllDayPointerDown = (event: ReactPointerEvent<HTMLElement>, date: string) => {
     if (!enableQuickCreate || event.button > 0) {
+      clearQuickCreatePointers();
       return;
     }
+    clearQuickCreatePointers();
     allDayQuickCreatePointerRef.current = {
       startDate: date,
       anchor: {x: event.clientX, y: event.clientY},
@@ -240,21 +247,25 @@ export function WeekTimelineView({
   const handleAllDayPointerUp = (date: string) => {
     const pointer = allDayQuickCreatePointerRef.current;
     if (!enableQuickCreate || !pointer) {
+      clearQuickCreatePointers();
       return;
     }
-    onOpenQuickCreate(buildAllDayQuickCreateDraft({
+    const draft = buildAllDayQuickCreateDraft({
       startDate: pointer.startDate,
       endDate: date,
       anchor: pointer.anchor,
-    }));
-    allDayQuickCreatePointerRef.current = null;
+    });
+    clearQuickCreatePointers();
+    onOpenQuickCreate(draft);
   };
 
   const handleTimeSlotPointerDown = (event: ReactPointerEvent<HTMLElement>, date: string, hour: number) => {
     if (!enableQuickCreate || event.button > 0) {
+      clearQuickCreatePointers();
       return;
     }
     const rect = event.currentTarget.getBoundingClientRect();
+    clearQuickCreatePointers();
     timeQuickCreatePointerRef.current = {
       date,
       hour,
@@ -267,6 +278,7 @@ export function WeekTimelineView({
   const handleTimeSlotPointerUp = (event: ReactPointerEvent<HTMLElement>, date: string, hour: number) => {
     const pointer = timeQuickCreatePointerRef.current;
     if (!enableQuickCreate || !pointer || pointer.date !== date) {
+      clearQuickCreatePointers();
       return;
     }
 
@@ -296,8 +308,8 @@ export function WeekTimelineView({
         anchor: {x: pointer.clientX, y: pointer.clientY},
       });
 
+    clearQuickCreatePointers();
     onOpenQuickCreate(draft);
-    timeQuickCreatePointerRef.current = null;
   };
 
   useEffect(() => {
@@ -343,6 +355,7 @@ export function WeekTimelineView({
               onDrop={(event) => handleAllDayDrop(event, day.isoDate)}
               onPointerDown={(event) => handleAllDayPointerDown(event, day.isoDate)}
               onPointerUp={() => handleAllDayPointerUp(day.isoDate)}
+              onPointerCancel={clearQuickCreatePointers}
               className="border-l border-slate-100 p-2"
               style={{minHeight: allDayHeaderMinHeight}}
             >
@@ -432,9 +445,10 @@ export function WeekTimelineView({
                   aria-label={`${day.isoDate} ${String(hour).padStart(2, '0')}:00`}
                   onPointerDown={(event) => handleTimeSlotPointerDown(event, day.isoDate, hour)}
                   onPointerUp={(event) => handleTimeSlotPointerUp(event, day.isoDate, hour)}
+                  onPointerCancel={clearQuickCreatePointers}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => {
-                    timeQuickCreatePointerRef.current = null;
+                    clearQuickCreatePointers();
                     event.preventDefault();
                     const payload = readCalendarDragPayload(event.dataTransfer);
                     if (!payload) {

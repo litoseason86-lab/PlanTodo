@@ -171,6 +171,47 @@ describe('WeekTimelineView', () => {
     expect(onOpenQuickCreate).not.toHaveBeenCalled();
   });
 
+  it('clears a timed quick-create pointer after pointerup on a different date', () => {
+    const onOpenQuickCreate = vi.fn();
+    renderWeek({enableQuickCreate: true, onOpenQuickCreate});
+    const startSlot = screen.getByLabelText('2026-06-06 09:00');
+    const wrongDateSlot = screen.getByLabelText('2026-06-05 09:00');
+    mockElementRect(startSlot, {top: 100, height: 64});
+    mockElementRect(wrongDateSlot, {top: 100, height: 64});
+
+    act(() => {
+      dispatchElementPointerDown(startSlot, 100, 20);
+      dispatchElementPointerUp(wrongDateSlot, 100, 20);
+      dispatchElementPointerUp(startSlot, 100, 20);
+    });
+
+    expect(onOpenQuickCreate).not.toHaveBeenCalled();
+  });
+
+  it('clears all quick-create pointers when dropping on a time slot', () => {
+    const onOpenQuickCreate = vi.fn();
+    const onScheduleTime = vi.fn().mockResolvedValue(true);
+    renderWeek({enableQuickCreate: true, onOpenQuickCreate, onScheduleTime});
+    const allDayLane = screen.getByLabelText('2026-06-06 全天');
+    const slot = screen.getByLabelText('2026-06-06 09:00');
+    mockElementRect(slot, {top: 100, height: 64});
+    const data = createDragData();
+    writeCalendarDragPayload(data, {type: 'calendar-task', taskId: 1, source: 'sidebar'});
+
+    act(() => {
+      dispatchElementPointerDown(allDayLane, 20, 10);
+    });
+    const dropEvent = createEvent.drop(slot, {dataTransfer: data});
+    Object.defineProperty(dropEvent, 'clientY', {value: 100});
+    fireEvent(slot, dropEvent);
+    act(() => {
+      dispatchElementPointerUp(allDayLane, 20, 10);
+    });
+
+    expect(onScheduleTime).toHaveBeenCalledWith({taskId: 1, date: '2026-06-06', hour: 9, minute: 0});
+    expect(onOpenQuickCreate).not.toHaveBeenCalled();
+  });
+
   it('uses density height for timeline rows', () => {
     renderWeek({weekTimelineDensity: 'comfortable'});
     expect(screen.getByLabelText('2026-06-06 09:00')).toHaveStyle({height: '88px'});
