@@ -18,15 +18,25 @@ export interface CalendarTaskPoolFilters {
 
 export interface CalendarAllDayWithoutTimeFilters extends CalendarRange, CalendarTaskPoolFilters {}
 
-export interface CalendarCreateTaskInput {
+interface BaseCalendarCreateTaskInput {
   title: string;
   categoryId: number;
   plannedDate: string;
-  plannedEndDate?: string;
-  startAt?: string;
-  endAt?: string;
-  allDay: boolean;
 }
+
+export type CalendarCreateTaskInput =
+  | (BaseCalendarCreateTaskInput & {
+      allDay: true;
+      plannedEndDate?: string;
+      startAt?: undefined;
+      endAt?: undefined;
+    })
+  | (BaseCalendarCreateTaskInput & {
+      allDay: false;
+      plannedEndDate?: undefined;
+      startAt: string;
+      endAt: string;
+    });
 
 export const calendarApi = {
   getCalendarTasks(filters: CalendarTaskFilters): Promise<Task[]> {

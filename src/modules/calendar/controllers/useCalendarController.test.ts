@@ -512,6 +512,50 @@ describe('useCalendarController', () => {
     expect(result.current.quickCreateDraft).toMatchObject({kind: 'timed'});
   });
 
+  it('does not let an older quick create submit close a newer draft', async () => {
+    let resolveCreate: (task: never) => void = () => {};
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.createCalendarTask).mockReturnValue(new Promise((resolve) => {
+      resolveCreate = resolve;
+    }));
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [{id: 8, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''}],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+    }));
+
+    act(() => result.current.openQuickCreateDraft({
+      kind: 'timed',
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      anchor: {x: 10, y: 20},
+    }));
+
+    const submitPromise = result.current.submitQuickCreateDraft({
+      title: '写方案',
+      categoryId: 8,
+    });
+
+    act(() => result.current.openQuickCreateDraft({
+      kind: 'all-day',
+      plannedDate: '2026-06-18',
+      anchor: {x: 30, y: 40},
+    }));
+
+    await act(async () => {
+      resolveCreate({id: 1} as never);
+      await expect(submitPromise).resolves.toEqual({ok: true});
+    });
+
+    expect(result.current.quickCreateDraft).toMatchObject({
+      kind: 'all-day',
+      plannedDate: '2026-06-18',
+    });
+  });
+
   it('closes quick create and returns success when post-create refresh fails', async () => {
     const showToast = vi.fn();
     vi.mocked(calendarApi.getCalendarTasks).mockRejectedValue(new Error('刷新失败'));
@@ -543,6 +587,39 @@ describe('useCalendarController', () => {
     expect(showToast).toHaveBeenCalledWith('刷新失败', 'error');
   });
 
+  it('closes quick create and returns success when mutation success callback fails', async () => {
+    const showToast = vi.fn();
+    const onMutationSuccess = vi.fn().mockRejectedValue(new Error('同步失败'));
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.createCalendarTask).mockResolvedValue({id: 1} as never);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [{id: 8, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''}],
+      initialDate: '2026-06-06',
+      showToast,
+      onMutationSuccess,
+    }));
+
+    act(() => result.current.openQuickCreateDraft({
+      kind: 'timed',
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      anchor: {x: 10, y: 20},
+    }));
+
+    await act(async () => {
+      await expect(result.current.submitQuickCreateDraft({
+        title: '写方案',
+        categoryId: 8,
+      })).resolves.toEqual({ok: true});
+    });
+
+    expect(result.current.quickCreateDraft).toBeUndefined();
+    expect(showToast).toHaveBeenCalledWith('同步失败', 'error');
+  });
+
   it('stores week timeline density through calendar settings', async () => {
     vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
     vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
@@ -553,8 +630,13 @@ describe('useCalendarController', () => {
       showToast: vi.fn(),
     }));
 
+    await waitFor(() => expect(calendarApi.getCalendarTasks).toHaveBeenCalled());
+    const callsBeforeDensityChange = vi.mocked(calendarApi.getCalendarTasks).mock.calls.length;
+
     act(() => result.current.setWeekTimelineDensity('comfortable'));
 
     expect(result.current.settings.weekTimelineDensity).toBe('comfortable');
+    expect(localStorage.getItem('plantodo.calendar.settings')).toContain('"weekTimelineDensity":"comfortable"');
+    expect(calendarApi.getCalendarTasks).toHaveBeenCalledTimes(callsBeforeDensityChange);
   });
 });

@@ -23,6 +23,7 @@ interface UseCalendarControllerArgs {
 export function useCalendarController({categories, initialDate, showToast, onMutationSuccess}: UseCalendarControllerArgs) {
   const showToastRef = useRef(showToast);
   const refreshSeqRef = useRef(0);
+  const quickCreateDraftSeqRef = useRef(0);
   const [view, setView] = useState<CalendarView>('week');
   const [anchorDate, setAnchorDate] = useState(() => initialDate ?? toIsoDate(new Date()));
   const [settings, setSettingsState] = useState<CalendarSettings>(() => loadCalendarSettings());
@@ -46,10 +47,12 @@ export function useCalendarController({categories, initialDate, showToast, onMut
   }, []);
 
   function openQuickCreateDraft(draft: CalendarQuickCreateDraft): void {
+    quickCreateDraftSeqRef.current += 1;
     setQuickCreateDraft(draft);
   }
 
   function closeQuickCreateDraft(): void {
+    quickCreateDraftSeqRef.current += 1;
     setQuickCreateDraft(undefined);
   }
 
@@ -144,22 +147,38 @@ export function useCalendarController({categories, initialDate, showToast, onMut
     if (!title) {
       return {ok: false, message: '请输入任务标题'};
     }
+    const draft = quickCreateDraft;
+    const submitDraftSeq = quickCreateDraftSeqRef.current;
 
     try {
-      await calendarApi.createCalendarTask({
-        title,
-        categoryId: input.categoryId,
-        plannedDate: quickCreateDraft.plannedDate,
-        plannedEndDate: quickCreateDraft.kind === 'all-day' ? quickCreateDraft.plannedEndDate : undefined,
-        startAt: quickCreateDraft.kind === 'timed' ? quickCreateDraft.startAt : undefined,
-        endAt: quickCreateDraft.kind === 'timed' ? quickCreateDraft.endAt : undefined,
-        allDay: quickCreateDraft.kind === 'all-day',
-      });
+      if (draft.kind === 'all-day') {
+        await calendarApi.createCalendarTask({
+          title,
+          categoryId: input.categoryId,
+          plannedDate: draft.plannedDate,
+          plannedEndDate: draft.plannedEndDate,
+          startAt: undefined,
+          endAt: undefined,
+          allDay: true,
+        });
+      } else {
+        await calendarApi.createCalendarTask({
+          title,
+          categoryId: input.categoryId,
+          plannedDate: draft.plannedDate,
+          plannedEndDate: undefined,
+          startAt: draft.startAt,
+          endAt: draft.endAt,
+          allDay: false,
+        });
+      }
     } catch (error) {
       return {ok: false, message: error instanceof Error ? error.message : '任务创建失败'};
     }
 
-    setQuickCreateDraft(undefined);
+    if (submitDraftSeq === quickCreateDraftSeqRef.current) {
+      setQuickCreateDraft(undefined);
+    }
     try {
       await refreshCalendarData();
     } catch (error) {
