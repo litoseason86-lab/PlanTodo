@@ -1,4 +1,4 @@
-import {render, screen} from '@testing-library/react';
+import {fireEvent, render, screen} from '@testing-library/react';
 import {describe, expect, it, vi} from 'vitest';
 
 import {calendarApi} from '../api/calendarApi';
@@ -49,5 +49,26 @@ describe('CalendarPanel', () => {
     );
 
     await screen.findByText('写方案');
+  });
+
+  it('hides completed tasks from settings', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([
+      {id: 1, userId: 1, categoryId: 1, title: '完成任务', plannedDate: '2026-06-06', allDay: true, status: 'DONE', createdAt: '', updatedAt: ''},
+    ]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+
+    render(
+      <CalendarPanel
+        categories={[{id: 1, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''}]}
+        styleContext={{primary: '#fb7185', primaryLight: '#ffe4e6', secondary: '#fda4af'}}
+        showToast={vi.fn()}
+        initialDate="2026-06-06"
+      />,
+    );
+
+    expect(await screen.findByText('完成任务')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('显示设置'));
+    fireEvent.click(screen.getByLabelText('显示已完成'));
+    expect(screen.queryByText('完成任务')).not.toBeInTheDocument();
   });
 });

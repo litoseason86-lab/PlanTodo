@@ -3,6 +3,7 @@ import {type CSSProperties, useState} from 'react';
 import type {Category} from '../../../../shared/domain/entities';
 import {useCalendarController} from '../controllers/useCalendarController';
 import {CalendarListView} from './CalendarListView';
+import {CalendarSettingsMenu} from './CalendarSettingsMenu';
 import {CalendarToolbar} from './CalendarToolbar';
 import {MonthCalendarView} from './MonthCalendarView';
 import {WeekTimelineView} from './WeekTimelineView';
@@ -28,9 +29,11 @@ export function CalendarPanel({categories, styleContext, showToast, initialDate}
         onOpenSettings={() => setSettingsOpen((open) => !open)}
       />
       {settingsOpen && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-xs font-semibold text-slate-500">
-          显示设置
-        </div>
+        <CalendarSettingsMenu
+          categories={categories}
+          settings={controller.settings}
+          setSettings={controller.setSettings}
+        />
       )}
       <div style={{'--calendar-accent': styleContext.primary} as CSSProperties}>
         {controller.view === 'month' && (
