@@ -49,7 +49,7 @@
 - Create: `src/modules/calendar/controllers/calendarSettings.ts`
 - Create: `src/modules/calendar/controllers/calendarSettings.test.ts`
 
-- [ ] **Step 1: Write failing settings tests**
+- [x] **Step 1: Write failing settings tests**
 
 Create `src/modules/calendar/controllers/calendarSettings.test.ts`:
 
@@ -117,7 +117,7 @@ describe('calendarSettings', () => {
 });
 ```
 
-- [ ] **Step 2: Run settings test and verify RED**
+- [x] **Step 2: Run settings test and verify RED**
 
 Run:
 
@@ -127,7 +127,7 @@ npm test -- src/modules/calendar/controllers/calendarSettings.test.ts
 
 Expected: FAIL because module does not exist.
 
-- [ ] **Step 3: Implement settings helper**
+- [x] **Step 3: Implement settings helper**
 
 Create `src/modules/calendar/controllers/calendarSettings.ts`:
 
@@ -193,7 +193,7 @@ export function saveCalendarSettings(settings: CalendarSettings): void {
 }
 ```
 
-- [ ] **Step 4: Implement calendar API wrapper**
+- [x] **Step 4: Implement calendar API wrapper**
 
 Create `src/modules/calendar/api/calendarApi.ts`:
 
@@ -238,7 +238,7 @@ export const calendarApi = {
 };
 ```
 
-- [ ] **Step 5: Run settings test and verify GREEN**
+- [x] **Step 5: Run settings test and verify GREEN**
 
 Run:
 
@@ -248,7 +248,7 @@ npm test -- src/modules/calendar/controllers/calendarSettings.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/modules/calendar/api/calendarApi.ts src/modules/calendar/controllers/calendarSettings.ts src/modules/calendar/controllers/calendarSettings.test.ts
@@ -263,7 +263,7 @@ git commit -m "feat: add calendar api and settings"
 - Create: `src/modules/calendar/controllers/calendarLayout.ts`
 - Create: `src/modules/calendar/controllers/calendarLayout.test.ts`
 
-- [ ] **Step 1: Write failing layout tests**
+- [x] **Step 1: Write failing layout tests**
 
 Create `src/modules/calendar/controllers/calendarLayout.test.ts`:
 
@@ -338,7 +338,7 @@ describe('calendarLayout', () => {
 });
 ```
 
-- [ ] **Step 2: Run layout tests and verify RED**
+- [x] **Step 2: Run layout tests and verify RED**
 
 Run:
 
@@ -348,7 +348,7 @@ npm test -- src/modules/calendar/controllers/calendarLayout.test.ts
 
 Expected: FAIL because layout helpers do not exist.
 
-- [ ] **Step 3: Implement layout helpers**
+- [x] **Step 3: Implement layout helpers**
 
 Create `src/modules/calendar/controllers/calendarLayout.ts`:
 
@@ -455,7 +455,7 @@ export function segmentAllDayTask(task: Task, dateFrom: string, dateTo: string):
 }
 ```
 
-- [ ] **Step 4: Run layout tests and verify GREEN**
+- [x] **Step 4: Run layout tests and verify GREEN**
 
 Run:
 
@@ -465,7 +465,7 @@ npm test -- src/modules/calendar/controllers/calendarLayout.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/modules/calendar/controllers/calendarLayout.ts src/modules/calendar/controllers/calendarLayout.test.ts
@@ -480,7 +480,7 @@ git commit -m "feat: add calendar layout helpers"
 - Create: `src/modules/calendar/controllers/useCalendarController.ts`
 - Create: `src/modules/calendar/controllers/useCalendarController.test.ts`
 
-- [ ] **Step 1: Write failing controller tests**
+- [x] **Step 1: Write failing controller tests**
 
 Create `src/modules/calendar/controllers/useCalendarController.test.ts`:
 
@@ -574,7 +574,7 @@ describe('useCalendarController', () => {
 });
 ```
 
-- [ ] **Step 2: Run controller tests and verify RED**
+- [x] **Step 2: Run controller tests and verify RED**
 
 Run:
 
@@ -584,7 +584,7 @@ npm test -- src/modules/calendar/controllers/useCalendarController.test.ts
 
 Expected: FAIL because controller does not exist.
 
-- [ ] **Step 3: Implement controller**
+- [x] **Step 3: Implement controller**
 
 Create `src/modules/calendar/controllers/useCalendarController.ts`:
 
@@ -694,7 +694,7 @@ export function useCalendarController({categories, initialDate, showToast}: UseC
 }
 ```
 
-- [ ] **Step 4: Run controller tests and verify GREEN**
+- [x] **Step 4: Run controller tests and verify GREEN**
 
 Run:
 
@@ -704,7 +704,7 @@ npm test -- src/modules/calendar/controllers/useCalendarController.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/modules/calendar/controllers/useCalendarController.ts src/modules/calendar/controllers/useCalendarController.test.ts
@@ -723,7 +723,7 @@ git commit -m "feat: add calendar controller"
 - Create: `src/modules/calendar/components/CalendarToolbar.tsx`
 - Create: `src/modules/calendar/components/CalendarPanel.test.tsx`
 
-- [ ] **Step 1: Write failing shell test**
+- [x] **Step 1: Write failing shell test**
 
 Create `src/modules/calendar/components/CalendarPanel.test.tsx`:
 
@@ -765,7 +765,7 @@ describe('CalendarPanel', () => {
 });
 ```
 
-- [ ] **Step 2: Run shell test and verify RED**
+- [x] **Step 2: Run shell test and verify RED**
 
 Run:
 
@@ -775,7 +775,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: FAIL because components do not exist.
 
-- [ ] **Step 3: Implement toolbar**
+- [x] **Step 3: Implement toolbar**
 
 Create `src/modules/calendar/components/CalendarToolbar.tsx`:
 
@@ -830,7 +830,7 @@ export function CalendarToolbar({view, anchorDate, setView, setAnchorDate, onOpe
 }
 ```
 
-- [ ] **Step 4: Implement panel shell**
+- [x] **Step 4: Implement panel shell**
 
 Create `src/modules/calendar/components/CalendarPanel.tsx`:
 
@@ -874,7 +874,7 @@ export function CalendarPanel({categories, styleContext, showToast, initialDate}
 }
 ```
 
-- [ ] **Step 5: Wire navigation**
+- [x] **Step 5: Wire navigation**
 
 In `src/app/navigation.ts`, add tab before `daily`:
 
@@ -911,7 +911,7 @@ import {CalendarPanel} from '../modules/calendar/components/CalendarPanel';
 )}
 ```
 
-- [ ] **Step 6: Run shell tests and typecheck**
+- [x] **Step 6: Run shell tests and typecheck**
 
 Run:
 
@@ -922,7 +922,7 @@ npm run lint
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/app/navigation.ts src/app/components/AppHeader.tsx src/app/AppShell.tsx src/modules/calendar/components/CalendarPanel.tsx src/modules/calendar/components/CalendarToolbar.tsx src/modules/calendar/components/CalendarPanel.test.tsx
@@ -940,7 +940,7 @@ git commit -m "feat: add calendar tab shell"
 - Modify: `src/modules/calendar/components/CalendarPanel.tsx`
 - Modify: `src/modules/calendar/components/CalendarPanel.test.tsx`
 
-- [ ] **Step 1: Add failing render test**
+- [x] **Step 1: Add failing render test**
 
 Append this case inside the existing `describe('CalendarPanel', ...)` block. The file already imports and mocks `calendarApi`; do not add a second import or `vi.mock`.
 
@@ -964,7 +964,7 @@ it('renders month tasks', async () => {
 });
 ```
 
-- [ ] **Step 2: Run component test and verify RED**
+- [x] **Step 2: Run component test and verify RED**
 
 Run:
 
@@ -974,7 +974,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: FAIL because read views are not implemented.
 
-- [ ] **Step 3: Implement month view**
+- [x] **Step 3: Implement month view**
 
 Create `src/modules/calendar/components/MonthCalendarView.tsx`:
 
@@ -1045,7 +1045,7 @@ export function MonthCalendarView({anchorDate, tasksByDate, categories, onCreate
 }
 ```
 
-- [ ] **Step 4: Implement week read view**
+- [x] **Step 4: Implement week read view**
 
 Create `src/modules/calendar/components/WeekTimelineView.tsx`:
 
@@ -1104,7 +1104,7 @@ export function WeekTimelineView({anchorDate, tasksByDate, categories}: WeekTime
 }
 ```
 
-- [ ] **Step 5: Implement list view**
+- [x] **Step 5: Implement list view**
 
 Create `src/modules/calendar/components/CalendarListView.tsx`:
 
@@ -1147,7 +1147,7 @@ export function CalendarListView({dateFrom, dateTo, tasksByDate, categories}: Ca
 }
 ```
 
-- [ ] **Step 6: Wire views into panel**
+- [x] **Step 6: Wire views into panel**
 
 In `src/modules/calendar/components/CalendarPanel.tsx`, import:
 
@@ -1186,7 +1186,7 @@ Replace placeholder content with:
 )}
 ```
 
-- [ ] **Step 7: Run component tests and verify GREEN**
+- [x] **Step 7: Run component tests and verify GREEN**
 
 Run:
 
@@ -1196,7 +1196,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/modules/calendar/components/MonthCalendarView.tsx src/modules/calendar/components/WeekTimelineView.tsx src/modules/calendar/components/CalendarListView.tsx src/modules/calendar/components/CalendarPanel.tsx src/modules/calendar/components/CalendarPanel.test.tsx
@@ -1212,7 +1212,7 @@ git commit -m "feat: render calendar read views"
 - Modify: `src/modules/calendar/components/CalendarPanel.tsx`
 - Modify: `src/modules/calendar/components/CalendarPanel.test.tsx`
 
-- [ ] **Step 1: Add failing settings interaction test**
+- [x] **Step 1: Add failing settings interaction test**
 
 Update the existing top import in `src/modules/calendar/components/CalendarPanel.test.tsx`:
 
@@ -1245,7 +1245,7 @@ it('hides completed tasks from settings', async () => {
 });
 ```
 
-- [ ] **Step 2: Run component test and verify RED**
+- [x] **Step 2: Run component test and verify RED**
 
 Run:
 
@@ -1255,7 +1255,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: FAIL because real settings menu is absent.
 
-- [ ] **Step 3: Implement settings menu**
+- [x] **Step 3: Implement settings menu**
 
 Create `src/modules/calendar/components/CalendarSettingsMenu.tsx`:
 
@@ -1320,7 +1320,7 @@ export function CalendarSettingsMenu({categories, settings, setSettings}: Calend
 }
 ```
 
-- [ ] **Step 4: Wire settings menu into panel**
+- [x] **Step 4: Wire settings menu into panel**
 
 In `CalendarPanel.tsx`, import and replace placeholder:
 
@@ -1338,7 +1338,7 @@ import {CalendarSettingsMenu} from './CalendarSettingsMenu';
 )}
 ```
 
-- [ ] **Step 5: Run tests and verify GREEN**
+- [x] **Step 5: Run tests and verify GREEN**
 
 Run:
 
@@ -1348,7 +1348,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx src/modules/c
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/modules/calendar/components/CalendarSettingsMenu.tsx src/modules/calendar/components/CalendarPanel.tsx src/modules/calendar/components/CalendarPanel.test.tsx
@@ -1359,7 +1359,7 @@ git commit -m "feat: add calendar display settings"
 
 ## Frontend Foundation Verification
 
-- [ ] Run:
+- [x] Run:
 
 ```bash
 npm test -- src/modules/calendar
@@ -1369,7 +1369,7 @@ npm run build
 
 Expected: all commands exit 0.
 
-- [ ] Browser smoke test:
+- [x] Browser smoke test:
 
 ```bash
 npm run dev

@@ -69,7 +69,7 @@ npm run build
 - Create: `shared/lib/schedule.ts`
 - Create: `shared/lib/schedule.test.ts`
 
-- [ ] **Step 1: Write failing schedule helper tests**
+- [x] **Step 1: Write failing schedule helper tests**
 
 Create `shared/lib/schedule.test.ts`:
 
@@ -149,7 +149,7 @@ describe('schedule helpers', () => {
 });
 ```
 
-- [ ] **Step 2: Run the helper test and verify RED**
+- [x] **Step 2: Run the helper test and verify RED**
 
 Run:
 
@@ -159,7 +159,7 @@ npm test -- shared/lib/schedule.test.ts
 
 Expected: FAIL because `shared/lib/schedule.ts` does not exist.
 
-- [ ] **Step 3: Extend `Task`**
+- [x] **Step 3: Extend `Task`**
 
 In `shared/domain/entities.ts`, replace `Task` with:
 
@@ -194,7 +194,7 @@ LC_ALL=en_US.UTF-8 rg -n "plannedDate:" src server scripts shared --glob "*.{ts,
 
 Do not change runtime behavior in this cleanup. This is only keeping existing fixtures aligned with the new required field.
 
-- [ ] **Step 4: Implement schedule helpers**
+- [x] **Step 4: Implement schedule helpers**
 
 Create `shared/lib/schedule.ts`:
 
@@ -291,7 +291,7 @@ export function enumerateDateRange(dateFrom: string, dateTo: string): string[] {
 }
 ```
 
-- [ ] **Step 5: Run the helper test and verify GREEN**
+- [x] **Step 5: Run the helper test and verify GREEN**
 
 Run:
 
@@ -301,7 +301,7 @@ npm test -- shared/lib/schedule.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/domain/entities.ts shared/lib/schedule.ts shared/lib/schedule.test.ts
@@ -319,7 +319,7 @@ git commit -m "feat: add task schedule model helpers"
 - Modify: `server/modules/tasks/service.ts`
 - Modify: `server/modules/tasks/tasks.service.test.ts`
 
-- [ ] **Step 1: Add failing schema tests**
+- [x] **Step 1: Add failing schema tests**
 
 Update the top import in `server/modules/tasks/schemas.test.ts`:
 
@@ -384,7 +384,7 @@ it('infers timed task creation when startAt and endAt are provided', () => {
 });
 ```
 
-- [ ] **Step 2: Add failing service tests**
+- [x] **Step 2: Add failing service tests**
 
 Append to `server/modules/tasks/tasks.service.test.ts`:
 
@@ -465,7 +465,7 @@ it('rejects invalid timed task creation through the service', () => {
 });
 ```
 
-- [ ] **Step 3: Run tests and verify RED**
+- [x] **Step 3: Run tests and verify RED**
 
 Run:
 
@@ -475,7 +475,7 @@ npm test -- server/modules/tasks/schemas.test.ts server/modules/tasks/tasks.serv
 
 Expected: FAIL because schedule parser, repository method, and service method do not exist.
 
-- [ ] **Step 4: Extend task repository contracts**
+- [x] **Step 4: Extend task repository contracts**
 
 In `server/modules/tasks/repository.ts`, replace the file content with:
 
@@ -531,7 +531,7 @@ updateSchedule: vi.fn(),
 
 Otherwise TypeScript will fail before the new schedule tests even run.
 
-- [ ] **Step 5: Extend task schemas**
+- [x] **Step 5: Extend task schemas**
 
 In `server/modules/tasks/schemas.ts`:
 
@@ -691,7 +691,7 @@ export function parseTaskScheduleBody(body: unknown): TaskScheduleBody {
 }
 ```
 
-- [ ] **Step 6: Extend task service**
+- [x] **Step 6: Extend task service**
 
 In `server/modules/tasks/service.ts`:
 
@@ -787,7 +787,7 @@ this.validateSchedule({
 
 Place it after category existence validation and before `return this.tasks.create(...)`.
 
-- [ ] **Step 7: Run task schema/service tests and verify GREEN**
+- [x] **Step 7: Run task schema/service tests and verify GREEN**
 
 Run:
 
@@ -797,7 +797,7 @@ npm test -- server/modules/tasks/schemas.test.ts server/modules/tasks/tasks.serv
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/modules/tasks/repository.ts server/modules/tasks/schemas.ts server/modules/tasks/schemas.test.ts server/modules/tasks/service.ts server/modules/tasks/tasks.service.test.ts
@@ -819,7 +819,7 @@ git commit -m "feat: validate task scheduling rules"
 - Modify: `scripts/importJsonToSqlite.ts`
 - Modify: `scripts/importJsonToSqlite.test.ts`
 
-- [ ] **Step 1: Add failing JSON repository tests**
+- [x] **Step 1: Add failing JSON repository tests**
 
 Append to `server/storage/json/repositories/taskJsonRepository.test.ts`:
 
@@ -864,7 +864,7 @@ it('updates schedules in json storage', () => {
 });
 ```
 
-- [ ] **Step 2: Add failing SQLite repository tests**
+- [x] **Step 2: Add failing SQLite repository tests**
 
 Append to `server/storage/sqlite/repositories/taskSqliteRepository.test.ts`:
 
@@ -894,7 +894,7 @@ it('persists schedule fields and filters intersecting ranges', () => {
 });
 ```
 
-- [ ] **Step 3: Run storage tests and verify RED**
+- [x] **Step 3: Run storage tests and verify RED**
 
 Run:
 
@@ -904,7 +904,7 @@ npm test -- server/storage/json/repositories/taskJsonRepository.test.ts server/s
 
 Expected: FAIL because storage code does not support schedule fields.
 
-- [ ] **Step 4: Implement JSON storage support**
+- [x] **Step 4: Implement JSON storage support**
 
 In `server/storage/json/repositories/taskJsonRepository.ts`:
 
@@ -965,7 +965,7 @@ updateSchedule(input: UpdateTaskScheduleInput): Task | undefined {
 }
 ```
 
-- [ ] **Step 5: Implement SQLite migration and mappers**
+- [x] **Step 5: Implement SQLite migration and mappers**
 
 In `server/storage/sqlite/migrations.ts`, append migration version 3:
 
@@ -1031,7 +1031,7 @@ expect(mapTaskRow({
 })).toMatchObject({categoryId: 1, allDay: true});
 ```
 
-- [ ] **Step 6: Implement SQLite task repository support**
+- [x] **Step 6: Implement SQLite task repository support**
 
 In `server/storage/sqlite/repositories/taskSqliteRepository.ts`:
 
@@ -1114,7 +1114,7 @@ updateSchedule(input: UpdateTaskScheduleInput): Task | undefined {
 }
 ```
 
-- [ ] **Step 7: Update import script mapping**
+- [x] **Step 7: Update import script mapping**
 
 In `scripts/importJsonToSqlite.ts`, first extend `JsonTask`:
 
@@ -1178,7 +1178,7 @@ Add tests in `scripts/importJsonToSqlite.test.ts` that import a legacy task and 
 
 Expected imported rows map to `allDay: true` for the legacy task and `allDay: false` with `startAt/endAt` for the scheduled task.
 
-- [ ] **Step 8: Run storage tests and verify GREEN**
+- [x] **Step 8: Run storage tests and verify GREEN**
 
 Run:
 
@@ -1188,7 +1188,7 @@ npm test -- server/storage/json/repositories/taskJsonRepository.test.ts server/s
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/storage/json/repositories/taskJsonRepository.ts server/storage/json/repositories/taskJsonRepository.test.ts server/storage/sqlite/migrations.ts server/storage/sqlite/repositories/rowMappers.ts server/storage/sqlite/repositories/rowMappers.test.ts server/storage/sqlite/repositories/taskSqliteRepository.ts server/storage/sqlite/repositories/taskSqliteRepository.test.ts scripts/importJsonToSqlite.ts scripts/importJsonToSqlite.test.ts
@@ -1204,7 +1204,7 @@ git commit -m "feat: persist task schedules"
 - Modify: `src/modules/tasks/api/tasksApi.ts`
 - Modify: `src/modules/tasks/api/tasksApi.test.ts`
 
-- [ ] **Step 1: Add failing API client tests**
+- [x] **Step 1: Add failing API client tests**
 
 Append to `src/modules/tasks/api/tasksApi.test.ts`:
 
@@ -1241,7 +1241,7 @@ it('updates a task schedule', async () => {
 });
 ```
 
-- [ ] **Step 2: Run API test and verify RED**
+- [x] **Step 2: Run API test and verify RED**
 
 Run:
 
@@ -1251,7 +1251,7 @@ npm test -- src/modules/tasks/api/tasksApi.test.ts
 
 Expected: FAIL because `dateFrom/dateTo` and `updateTaskSchedule` are absent.
 
-- [ ] **Step 3: Add schedule route**
+- [x] **Step 3: Add schedule route**
 
 In `server/modules/tasks/routes.ts`:
 
@@ -1277,7 +1277,7 @@ router.patch('/tasks/:id/schedule', (req, res) => {
 });
 ```
 
-- [ ] **Step 4: Extend `tasksApi`**
+- [x] **Step 4: Extend `tasksApi`**
 
 In `src/modules/tasks/api/tasksApi.ts`, update `getTasks` filter type:
 
@@ -1325,7 +1325,7 @@ updateTaskSchedule(
 },
 ```
 
-- [ ] **Step 5: Run task API tests and verify GREEN**
+- [x] **Step 5: Run task API tests and verify GREEN**
 
 Run:
 
@@ -1335,7 +1335,7 @@ npm test -- server/modules/tasks/schemas.test.ts server/modules/tasks/tasks.serv
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/modules/tasks/routes.ts src/modules/tasks/api/tasksApi.ts src/modules/tasks/api/tasksApi.test.ts
@@ -1355,7 +1355,7 @@ git commit -m "feat: expose task schedule api"
 - Modify: `src/modules/focus/api/focusApi.ts`
 - Modify: `src/modules/focus/api/focusApi.test.ts`
 
-- [ ] **Step 1: Add failing focus schema tests**
+- [x] **Step 1: Add failing focus schema tests**
 
 Update the top import in `server/modules/focus/schemas.test.ts`:
 
@@ -1380,7 +1380,7 @@ it('rejects mixed focus session date query', () => {
 });
 ```
 
-- [ ] **Step 2: Add failing focus API test**
+- [x] **Step 2: Add failing focus API test**
 
 Append to `src/modules/focus/api/focusApi.test.ts`:
 
@@ -1395,7 +1395,7 @@ it('queries sessions by date range', async () => {
 });
 ```
 
-- [ ] **Step 3: Run focus tests and verify RED**
+- [x] **Step 3: Run focus tests and verify RED**
 
 Run:
 
@@ -1405,7 +1405,7 @@ npm test -- server/modules/focus/schemas.test.ts src/modules/focus/api/focusApi.
 
 Expected: FAIL because `parseSessionQuery` and range API are absent.
 
-- [ ] **Step 4: Implement focus query parser**
+- [x] **Step 4: Implement focus query parser**
 
 In `server/modules/focus/schemas.ts`, add:
 
@@ -1433,7 +1433,7 @@ export function parseSessionQuery(query: Record<string, unknown>): {
 }
 ```
 
-- [ ] **Step 5: Extend focus service**
+- [x] **Step 5: Extend focus service**
 
 In `server/modules/focus/service.ts`, add method:
 
@@ -1445,7 +1445,7 @@ listByDateRange(userId: number, dateFrom: string, dateTo: string) {
 }
 ```
 
-- [ ] **Step 6: Extend focus route**
+- [x] **Step 6: Extend focus route**
 
 In `server/modules/focus/routes.ts`:
 
@@ -1473,7 +1473,7 @@ router.get('/task-sessions', (req, res) => {
 });
 ```
 
-- [ ] **Step 7: Extend focus API**
+- [x] **Step 7: Extend focus API**
 
 In `src/modules/focus/api/focusApi.ts`, change `getSessions` signature and params:
 
@@ -1488,7 +1488,7 @@ getSessions(filters?: {date?: string; dateFrom?: string; dateTo?: string}): Prom
 },
 ```
 
-- [ ] **Step 8: Run focus tests and verify GREEN**
+- [x] **Step 8: Run focus tests and verify GREEN**
 
 Run:
 
@@ -1498,7 +1498,7 @@ npm test -- server/modules/focus/schemas.test.ts server/modules/focus/focus.serv
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/modules/focus/schemas.ts server/modules/focus/schemas.test.ts server/modules/focus/service.ts server/modules/focus/focus.service.test.ts server/modules/focus/routes.ts src/modules/focus/api/focusApi.ts src/modules/focus/api/focusApi.test.ts
@@ -1509,7 +1509,7 @@ git commit -m "feat: expose focus session range api"
 
 ## Backend Final Verification
 
-- [ ] Run:
+- [x] Run:
 
 ```bash
 npm test -- shared/lib/schedule.test.ts server/modules/tasks server/storage/json server/storage/sqlite server/modules/focus scripts/importJsonToSqlite.test.ts src/modules/tasks/api/tasksApi.test.ts src/modules/focus/api/focusApi.test.ts
@@ -1517,7 +1517,7 @@ npm test -- shared/lib/schedule.test.ts server/modules/tasks server/storage/json
 
 Expected: all selected tests pass.
 
-- [ ] Run:
+- [x] Run:
 
 ```bash
 npm test
@@ -1527,7 +1527,7 @@ npm run build
 
 Expected: all commands exit 0.
 
-- [ ] Check migration order:
+- [x] Check migration order:
 
 ```bash
 LC_ALL=en_US.UTF-8 rg -n "version: 3|task_schedule_fields" server/storage/sqlite/migrations.ts

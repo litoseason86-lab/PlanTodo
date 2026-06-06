@@ -44,7 +44,7 @@
 - Create: `src/modules/calendar/controllers/weekTimelineLayout.ts`
 - Create: `src/modules/calendar/controllers/weekTimelineLayout.test.ts`
 
-- [ ] **Step 1: Write failing layout tests**
+- [x] **Step 1: Write failing layout tests**
 
 Create `src/modules/calendar/controllers/weekTimelineLayout.test.ts`:
 
@@ -89,7 +89,7 @@ describe('weekTimelineLayout', () => {
 });
 ```
 
-- [ ] **Step 2: Run layout test and verify RED**
+- [x] **Step 2: Run layout test and verify RED**
 
 Run:
 
@@ -99,7 +99,7 @@ npm test -- src/modules/calendar/controllers/weekTimelineLayout.test.ts
 
 Expected: FAIL because file does not exist.
 
-- [ ] **Step 3: Implement layout helpers**
+- [x] **Step 3: Implement layout helpers**
 
 Create `src/modules/calendar/controllers/weekTimelineLayout.ts`:
 
@@ -156,7 +156,7 @@ export function buildFocusSessionBlock(input: {startedAt: string; durationSecond
 }
 ```
 
-- [ ] **Step 4: Run layout test and verify GREEN**
+- [x] **Step 4: Run layout test and verify GREEN**
 
 Run:
 
@@ -166,7 +166,7 @@ npm test -- src/modules/calendar/controllers/weekTimelineLayout.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/modules/calendar/controllers/weekTimelineLayout.ts src/modules/calendar/controllers/weekTimelineLayout.test.ts
@@ -181,7 +181,7 @@ git commit -m "feat: add week timeline interaction layout"
 - Modify: `src/modules/calendar/controllers/useCalendarController.ts`
 - Modify: `src/modules/calendar/controllers/useCalendarController.test.ts`
 
-- [ ] **Step 1: Add failing controller action tests**
+- [x] **Step 1: Add failing controller action tests**
 
 Append to `src/modules/calendar/controllers/useCalendarController.test.ts`:
 
@@ -259,7 +259,7 @@ it('shows an error toast when schedule update fails', async () => {
 });
 ```
 
-- [ ] **Step 2: Run controller test and verify RED**
+- [x] **Step 2: Run controller test and verify RED**
 
 Run:
 
@@ -269,7 +269,7 @@ npm test -- src/modules/calendar/controllers/useCalendarController.test.ts
 
 Expected: FAIL because time scheduling and resizing actions do not exist.
 
-- [ ] **Step 3: Add controller action helpers**
+- [x] **Step 3: Add controller action helpers**
 
 In `src/modules/calendar/controllers/useCalendarController.ts`, import:
 
@@ -354,7 +354,7 @@ moveTimedTask,
 resizeTimedTask,
 ```
 
-- [ ] **Step 4: Run controller test and verify GREEN**
+- [x] **Step 4: Run controller test and verify GREEN**
 
 Run:
 
@@ -364,7 +364,7 @@ npm test -- src/modules/calendar/controllers/useCalendarController.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/modules/calendar/controllers/useCalendarController.ts src/modules/calendar/controllers/useCalendarController.test.ts
@@ -379,7 +379,7 @@ git commit -m "feat: add calendar schedule actions"
 - Modify: `src/modules/calendar/components/MonthCalendarView.tsx`
 - Modify: `src/modules/calendar/components/CalendarPanel.test.tsx`
 
-- [ ] **Step 1: Add failing drag test**
+- [x] **Step 1: Add failing drag test**
 
 Append this helper near the top of `src/modules/calendar/components/CalendarPanel.test.tsx`, after the `vi.mock(...)` block, then append the test case inside the existing `describe('CalendarPanel', ...)` block:
 
@@ -422,7 +422,7 @@ it('drags a task to a month date cell', async () => {
 });
 ```
 
-- [ ] **Step 2: Run component test and verify RED**
+- [x] **Step 2: Run component test and verify RED**
 
 Run:
 
@@ -432,7 +432,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: FAIL if date cells are not labelled or drag payload is not stable.
 
-- [ ] **Step 3: Harden month drag payload**
+- [x] **Step 3: Harden month drag payload**
 
 In `MonthCalendarView.tsx`:
 
@@ -456,7 +456,7 @@ const payload = raw.startsWith('{') ? JSON.parse(raw) as {taskId: number} : {tas
 if (payload.taskId) void onScheduleDate(payload.taskId, day.isoDate);
 ```
 
-- [ ] **Step 4: Run component test and verify GREEN**
+- [x] **Step 4: Run component test and verify GREEN**
 
 Run:
 
@@ -466,7 +466,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/modules/calendar/components/MonthCalendarView.tsx src/modules/calendar/components/CalendarPanel.test.tsx
@@ -482,7 +482,7 @@ git commit -m "feat: drag tasks onto month dates"
 - Modify: `src/modules/calendar/components/CalendarPanel.tsx`
 - Modify: `src/modules/calendar/components/CalendarPanel.test.tsx`
 
-- [ ] **Step 1: Add failing week drop test**
+- [x] **Step 1: Add failing week drop test**
 
 Append this case inside the existing `describe('CalendarPanel', ...)` block. Reuse the `createDragData()` helper added in Task 3.
 
@@ -519,7 +519,7 @@ it('drops an all-day task onto the week timeline', async () => {
 });
 ```
 
-- [ ] **Step 2: Run component test and verify RED**
+- [x] **Step 2: Run component test and verify RED**
 
 Run:
 
@@ -529,7 +529,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: FAIL because week slots do not accept drops.
 
-- [ ] **Step 3: Wire controller actions into `CalendarPanel`**
+- [x] **Step 3: Wire controller actions into `CalendarPanel`**
 
 In `CalendarPanel.tsx`, pass actions to `WeekTimelineView`:
 
@@ -545,7 +545,7 @@ In `CalendarPanel.tsx`, pass actions to `WeekTimelineView`:
 />
 ```
 
-- [ ] **Step 4: Add week view props and drop slots**
+- [x] **Step 4: Add week view props and drop slots**
 
 In `WeekTimelineView.tsx`, update props:
 
@@ -608,7 +608,7 @@ onDragStart={(event) => event.dataTransfer.setData('application/json', JSON.stri
 }))}
 ```
 
-- [ ] **Step 5: Run component test and verify GREEN**
+- [x] **Step 5: Run component test and verify GREEN**
 
 Run:
 
@@ -618,7 +618,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/modules/calendar/components/WeekTimelineView.tsx src/modules/calendar/components/CalendarPanel.tsx src/modules/calendar/components/CalendarPanel.test.tsx
@@ -633,7 +633,7 @@ git commit -m "feat: drag tasks onto week timeline"
 - Modify: `src/modules/calendar/components/WeekTimelineView.tsx`
 - Modify: `src/modules/calendar/components/CalendarPanel.test.tsx`
 
-- [ ] **Step 1: Add failing resize drag test**
+- [x] **Step 1: Add failing resize drag test**
 
 Append this case inside the existing `describe('CalendarPanel', ...)` block:
 
@@ -679,7 +679,7 @@ it('drags a timed task resize handle', async () => {
 });
 ```
 
-- [ ] **Step 2: Run component test and verify RED**
+- [x] **Step 2: Run component test and verify RED**
 
 Run:
 
@@ -689,7 +689,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: FAIL because resize drag handling is absent.
 
-- [ ] **Step 3: Add pointer resize handle**
+- [x] **Step 3: Add pointer resize handle**
 
 In `WeekTimelineView.tsx`, add local resize state near the top of the component:
 
@@ -785,7 +785,7 @@ Inside timed task block render, add the bottom handle:
 
 The `15px -> 15 minutes` mapping is intentionally simple and testable. Do not add freeform pixel-perfect resizing in this pass.
 
-- [ ] **Step 4: Run tests and verify GREEN**
+- [x] **Step 4: Run tests and verify GREEN**
 
 Run:
 
@@ -795,7 +795,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx src/modules/c
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/modules/calendar/components/WeekTimelineView.tsx src/modules/calendar/components/CalendarPanel.test.tsx
@@ -812,7 +812,7 @@ git commit -m "feat: resize calendar time blocks"
 - Modify: `src/modules/calendar/components/CalendarPanel.tsx`
 - Modify: `src/modules/calendar/components/CalendarPanel.test.tsx`
 
-- [ ] **Step 1: Add failing focus render test**
+- [x] **Step 1: Add failing focus render test**
 
 Append to `src/modules/calendar/components/CalendarPanel.test.tsx`:
 
@@ -845,7 +845,7 @@ it('renders focus records when enabled', async () => {
 });
 ```
 
-- [ ] **Step 2: Run component test and verify RED**
+- [x] **Step 2: Run component test and verify RED**
 
 Run:
 
@@ -855,7 +855,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: FAIL because focus records are not rendered.
 
-- [ ] **Step 3: Render focus records in week view**
+- [x] **Step 3: Render focus records in week view**
 
 In `WeekTimelineView.tsx`, add:
 
@@ -895,7 +895,7 @@ In each hour cell, render positioned focus records whose `focusDate(session) ===
 
 This uses `buildFocusSessionBlock` for timeline placement and the existing shared China-date helper for day grouping, matching reports and focus range behavior.
 
-- [ ] **Step 4: Render focus summaries in list view**
+- [x] **Step 4: Render focus summaries in list view**
 
 In `CalendarListView.tsx`, update props:
 
@@ -926,7 +926,7 @@ focusSessions={controller.focusSessions}
 showFocusSessions={controller.settings.showFocusSessions}
 ```
 
-- [ ] **Step 5: Run focus tests and verify GREEN**
+- [x] **Step 5: Run focus tests and verify GREEN**
 
 Run:
 
@@ -936,7 +936,7 @@ npm test -- src/modules/calendar/components/CalendarPanel.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/modules/calendar/components/WeekTimelineView.tsx src/modules/calendar/components/CalendarListView.tsx src/modules/calendar/components/CalendarPanel.tsx src/modules/calendar/components/CalendarPanel.test.tsx
@@ -947,7 +947,7 @@ git commit -m "feat: show focus records in calendar"
 
 ## Interaction Final Verification
 
-- [ ] Run:
+- [x] Run:
 
 ```bash
 npm test -- src/modules/calendar
@@ -958,7 +958,7 @@ npm run build
 
 Expected: all commands exit 0.
 
-- [ ] Manual browser smoke:
+- [x] Manual browser smoke:
 
 ```bash
 npm run dev
