@@ -22,6 +22,7 @@ const TIMELINE_LANE_GAP_PX = 4;
 const ALL_DAY_LABEL_WIDTH_PX = 64;
 const ALL_DAY_HEADER_TOP_OFFSET_PX = 32;
 const ALL_DAY_SEGMENT_ROW_HEIGHT_PX = 28;
+const ALL_DAY_SEGMENT_ROW_GAP_PX = 4;
 
 interface WeekTimelineViewProps {
   anchorDate: string;
@@ -184,7 +185,12 @@ export function WeekTimelineView({
     tasks: allDayTasks,
   });
   const allDayRowCount = Math.max(1, ...allDaySegments.map((segment) => segment.rowIndex + 1));
-  const allDayHeaderMinHeight = ALL_DAY_HEADER_TOP_OFFSET_PX + allDayRowCount * ALL_DAY_SEGMENT_ROW_HEIGHT_PX + 8;
+  const allDayHeaderMinHeight = (
+    ALL_DAY_HEADER_TOP_OFFSET_PX +
+    allDayRowCount * ALL_DAY_SEGMENT_ROW_HEIGHT_PX +
+    Math.max(0, allDayRowCount - 1) * ALL_DAY_SEGMENT_ROW_GAP_PX +
+    8
+  );
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
 
   const handleAllDayDrop = (event: DragEvent<HTMLElement>, date: string) => {
@@ -247,10 +253,11 @@ export function WeekTimelineView({
         </div>
         <div
           data-week-all-day-layer="true"
-          className="pointer-events-none absolute inset-x-0 grid grid-cols-[64px_repeat(7,minmax(0,1fr))] gap-y-1 px-1"
+          className="pointer-events-none absolute inset-x-0 grid grid-cols-[64px_repeat(7,minmax(0,1fr))] px-1"
           style={{
             top: ALL_DAY_HEADER_TOP_OFFSET_PX,
             gridTemplateRows: `repeat(${allDayRowCount}, minmax(${ALL_DAY_SEGMENT_ROW_HEIGHT_PX}px, auto))`,
+            rowGap: ALL_DAY_SEGMENT_ROW_GAP_PX,
           }}
         >
           {allDaySegments.map((segment) => {
