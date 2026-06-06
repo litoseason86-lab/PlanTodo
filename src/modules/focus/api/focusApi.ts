@@ -2,9 +2,11 @@ import type {TaskExecutionSession} from '../../../../shared/domain/entities';
 import {requestJson} from '../../../shared/api/httpClient';
 
 export const focusApi = {
-  getSessions(filters?: {date?: string}): Promise<TaskExecutionSession[]> {
+  getSessions(filters?: {date?: string; dateFrom?: string; dateTo?: string}): Promise<TaskExecutionSession[]> {
     const params = new URLSearchParams();
     if (filters?.date) params.append('date', filters.date);
+    if (filters?.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters?.dateTo) params.append('dateTo', filters.dateTo);
     const query = params.toString();
     return requestJson<TaskExecutionSession[]>(`/api/task-sessions${query ? `?${query}` : ''}`);
   },

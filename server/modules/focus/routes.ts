@@ -2,7 +2,7 @@ import {Router} from 'express';
 
 import {handleHttpError} from '../../shared/http/handleHttpError';
 import {getUserContext} from '../../shared/http/userContext';
-import {parseSessionDateQuery, parseSessionId, parseTaskId} from './schemas';
+import {parseSessionId, parseSessionQuery, parseTaskId} from './schemas';
 import {FocusService} from './service';
 
 export function buildFocusRoutes(service: FocusService): Router {
@@ -11,8 +11,12 @@ export function buildFocusRoutes(service: FocusService): Router {
   router.get('/task-sessions', (req, res) => {
     try {
       const {userId} = getUserContext();
-      const date = parseSessionDateQuery(req.query.date);
-      res.json(service.listByDate(userId, date));
+      const query = parseSessionQuery(req.query as Record<string, unknown>);
+      if (query.dateFrom && query.dateTo) {
+        res.json(service.listByDateRange(userId, query.dateFrom, query.dateTo));
+        return;
+      }
+      res.json(service.listByDate(userId, query.date));
     } catch (error) {
       handleHttpError(res, error);
     }

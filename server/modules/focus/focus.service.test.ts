@@ -30,6 +30,33 @@ describe('FocusService', () => {
     );
   });
 
+  it('lists sessions by China calendar date range boundaries', () => {
+    const listByDateRange = vi.fn(() => []);
+    const service = new FocusService(
+      {
+        getById: vi.fn(),
+        updateStatus: vi.fn(),
+      },
+      {
+        getRunningByUser: vi.fn(),
+        listByDateRange,
+        listByTask: vi.fn(),
+        createRunning: vi.fn(),
+        pause: vi.fn(),
+        resume: vi.fn(),
+        stop: vi.fn(),
+      },
+    );
+
+    service.listByDateRange(1, '2026-06-01', '2026-06-07');
+
+    expect(listByDateRange).toHaveBeenCalledWith(
+      1,
+      '2026-05-31T16:00:00.000Z',
+      '2026-06-07T15:59:59.999Z',
+    );
+  });
+
   it('marks task IN_PROGRESS when a session starts and resets it on stop', () => {
     const task = {
       id: 1,

@@ -7,6 +7,15 @@ afterEach(() => {
 });
 
 describe('focusApi', () => {
+  it('queries sessions by date range', async () => {
+    const fetch = vi.fn().mockResolvedValue({ok: true, json: async () => []});
+    vi.stubGlobal('fetch', fetch);
+
+    await focusApi.getSessions({dateFrom: '2026-06-01', dateTo: '2026-06-07'});
+
+    expect(fetch).toHaveBeenCalledWith('/api/task-sessions?dateFrom=2026-06-01&dateTo=2026-06-07', expect.any(Object));
+  });
+
   it('pauses and resumes sessions by id', async () => {
     const fetch = vi.fn().mockResolvedValue({
       ok: true,

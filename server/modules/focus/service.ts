@@ -19,6 +19,12 @@ export class FocusService {
     return this.sessions.listByDateRange(userId, startAt, endAt);
   }
 
+  listByDateRange(userId: number, dateFrom: string, dateTo: string) {
+    const {startAt} = getChinaDateUtcRange(dateFrom);
+    const {endAt} = getChinaDateUtcRange(dateTo);
+    return this.sessions.listByDateRange(userId, startAt, endAt);
+  }
+
   getRunning(userId: number) {
     return this.sessions.getRunningByUser(userId) ?? null;
   }
