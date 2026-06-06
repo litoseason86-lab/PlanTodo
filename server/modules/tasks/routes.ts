@@ -6,6 +6,7 @@ import {
   parseTaskBody,
   parseTaskId,
   parseTaskQuery,
+  parseTaskScheduleBody,
   parseTaskStatusBody,
 } from './schemas';
 import {TasksService} from './service';
@@ -43,6 +44,18 @@ export function buildTaskRoutes(service: TasksService): Router {
       const id = parseTaskId(req.params.id);
       const body = parseTaskStatusBody(req.body);
       const task = service.updateStatus(id, userId, body.status);
+      res.json(task);
+    } catch (error) {
+      handleHttpError(res, error);
+    }
+  });
+
+  router.patch('/tasks/:id/schedule', (req, res) => {
+    try {
+      const {userId} = getUserContext();
+      const id = parseTaskId(req.params.id);
+      const body = parseTaskScheduleBody(req.body);
+      const task = service.updateSchedule({taskId: id, userId, ...body});
       res.json(task);
     } catch (error) {
       handleHttpError(res, error);
