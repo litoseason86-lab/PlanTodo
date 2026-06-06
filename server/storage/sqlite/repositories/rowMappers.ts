@@ -74,16 +74,18 @@ export function mapCategoryRow(row: CategoryRow): Category {
 }
 
 export function mapTaskRow(row: TaskRow): Task {
+  const allDay = row.all_day !== 0;
+
   return {
     id: row.id,
     userId: row.user_id,
     categoryId: row.category_id,
     title: row.title,
     plannedDate: row.planned_date,
-    plannedEndDate: row.planned_end_date ?? undefined,
-    startAt: row.start_at ?? undefined,
-    endAt: row.end_at ?? undefined,
-    allDay: row.all_day !== 0,
+    plannedEndDate: allDay ? row.planned_end_date ?? undefined : undefined,
+    startAt: allDay ? undefined : row.start_at ?? undefined,
+    endAt: allDay ? undefined : row.end_at ?? undefined,
+    allDay,
     status: row.status as TaskStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

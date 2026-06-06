@@ -158,6 +158,31 @@ describe('TasksService', () => {
     })).toThrow('Cross-day timed tasks are not supported yet');
   });
 
+  it('rejects timed schedules whose date differs from plannedDate', () => {
+    const task = {id: 1, userId: 1, categoryId: 1, title: '写方案', plannedDate: '2026-06-06', allDay: true, status: 'TODO', createdAt: '', updatedAt: ''} as const;
+    const service = new TasksService(
+      {
+        listByFilters: () => [],
+        getById: () => task,
+        create: () => task,
+        updateStatus: () => task,
+        updateSchedule: () => task,
+        remove: () => false,
+      },
+      {getById: () => ({id: 1, userId: 1, name: '工作', color: '#000', sortOrder: 1, createdAt: '', updatedAt: ''})},
+      {getRunningByUser: () => undefined, stop: () => undefined},
+    );
+
+    expect(() => service.updateSchedule({
+      taskId: 1,
+      userId: 1,
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-07T09:00:00.000',
+      endAt: '2026-06-07T10:00:00.000',
+      allDay: false,
+    })).toThrow('Timed task date must match plannedDate');
+  });
+
   it('rejects invalid timed task creation through the service', () => {
     const service = new TasksService(
       {

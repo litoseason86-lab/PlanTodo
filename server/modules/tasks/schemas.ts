@@ -25,11 +25,6 @@ export interface TaskScheduleBody {
   allDay: boolean;
 }
 
-function parseBoolean(value: unknown, fallback: boolean): boolean {
-  if (typeof value === 'boolean') return value;
-  return fallback;
-}
-
 function parseOptionalLocalDateTime(value: unknown, fieldName: string): string | undefined {
   if (value === undefined || value === null || value === '') return undefined;
   if (typeof value !== 'string' || !isLocalDateTimeString(value)) {
@@ -50,6 +45,12 @@ function assertScheduleBodyRules(body: TaskScheduleBody): void {
   }
   if (!body.allDay && body.startAt?.slice(0, 10) !== body.endAt?.slice(0, 10)) {
     throw new AppError(400, 'Cross-day timed tasks are not supported yet');
+  }
+  if (
+    !body.allDay &&
+    (body.startAt?.slice(0, 10) !== body.plannedDate || body.endAt?.slice(0, 10) !== body.plannedDate)
+  ) {
+    throw new AppError(400, 'Timed task date must match plannedDate');
   }
 }
 
@@ -148,7 +149,10 @@ export function parseTaskScheduleBody(body: unknown): TaskScheduleBody {
     throw new AppError(400, 'Invalid plannedDate');
   }
 
-  const allDay = parseBoolean(payload.allDay, true);
+  if (typeof payload.allDay !== 'boolean') {
+    throw new AppError(400, 'allDay must be a boolean');
+  }
+  const allDay = payload.allDay;
   const schedule: TaskScheduleBody = {
     plannedDate,
     plannedEndDate: allDay ? parseOptionalIsoDate(payload.plannedEndDate, 'plannedEndDate') : undefined,

@@ -161,6 +161,7 @@ export function importJsonToSqlite({jsonPath, sqlitePath, force = false}: Import
       }
 
       for (const task of json.tasks ?? []) {
+        const allDay = task.allDay !== false;
         db.prepare(
           `insert into tasks (
              id, user_id, category_id, title, planned_date, planned_end_date, start_at, end_at, all_day, status, created_at, updated_at
@@ -172,10 +173,10 @@ export function importJsonToSqlite({jsonPath, sqlitePath, force = false}: Import
           task.categoryId,
           task.title,
           task.plannedDate,
-          task.plannedEndDate ?? null,
-          task.startAt ?? null,
-          task.endAt ?? null,
-          task.allDay === false ? 0 : 1,
+          allDay ? task.plannedEndDate ?? null : null,
+          allDay ? null : task.startAt ?? null,
+          allDay ? null : task.endAt ?? null,
+          allDay ? 1 : 0,
           task.status,
           task.createdAt,
           task.updatedAt,

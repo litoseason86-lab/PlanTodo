@@ -26,6 +26,26 @@ export class TaskSqliteRepository implements TaskRepository {
       values.push(filters.categoryId);
     }
 
+    const rangeStart = filters.plannedDate ?? filters.dateFrom;
+    const rangeEnd = filters.plannedDate ?? filters.dateTo;
+    if (rangeStart && rangeEnd) {
+      clauses.push(`(
+        (
+          all_day = 1
+          and planned_date <= ?
+          and coalesce(planned_end_date, planned_date) >= ?
+        )
+        or (
+          all_day = 0
+          and start_at is not null
+          and end_at is not null
+          and substr(start_at, 1, 10) <= ?
+          and substr(end_at, 1, 10) >= ?
+        )
+      )`);
+      values.push(rangeEnd, rangeStart, rangeEnd, rangeStart);
+    }
+
     const rows = this.db
       .prepare(`select * from tasks where ${clauses.join(' and ')} order by created_at asc`)
       .all(...values) as TaskRow[];

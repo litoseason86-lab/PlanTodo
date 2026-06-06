@@ -48,6 +48,12 @@ export class TasksService {
     if (!input.allDay && input.startAt?.slice(0, 10) !== input.endAt?.slice(0, 10)) {
       throw new AppError(400, 'Cross-day timed tasks are not supported yet');
     }
+    if (
+      !input.allDay &&
+      (input.startAt?.slice(0, 10) !== input.plannedDate || input.endAt?.slice(0, 10) !== input.plannedDate)
+    ) {
+      throw new AppError(400, 'Timed task date must match plannedDate');
+    }
   }
 
   create(input: CreateTaskInput) {

@@ -37,6 +37,23 @@ describe('task schemas', () => {
     })).toThrow('plannedEndDate must be after plannedDate');
   });
 
+  it('requires explicit allDay for schedule updates', () => {
+    expect(() => parseTaskScheduleBody({
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+    })).toThrow('allDay must be a boolean');
+  });
+
+  it('rejects timed schedules whose date differs from plannedDate', () => {
+    expect(() => parseTaskScheduleBody({
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-07T09:00:00.000',
+      endAt: '2026-06-07T10:00:00.000',
+      allDay: false,
+    })).toThrow('Timed task date must match plannedDate');
+  });
+
   it('parses timed task schedule body', () => {
     expect(parseTaskScheduleBody({
       plannedDate: '2026-06-06',
