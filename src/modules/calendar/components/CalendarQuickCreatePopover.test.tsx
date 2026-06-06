@@ -1,5 +1,5 @@
 import {fireEvent, render, screen, waitFor} from '@testing-library/react';
-import {describe, expect, it, vi} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import type {Category} from '../../../../shared/domain/entities';
 import type {CalendarQuickCreateDraft} from '../controllers/weekTimelineInteraction';
@@ -17,6 +17,18 @@ const timedDraft: CalendarQuickCreateDraft = {
   endAt: '2026-06-06T10:00:00.000',
   anchor: {x: 30, y: 40},
 };
+
+function createDeferredSubmitResult() {
+  let resolve!: (value: {ok: true} | {ok: false; message: string}) => void;
+  const promise = new Promise<{ok: true} | {ok: false; message: string}>((nextResolve) => {
+    resolve = nextResolve;
+  });
+  return {promise, resolve};
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('CalendarQuickCreatePopover', () => {
   it('renders timed draft range and submits title/category', async () => {
@@ -160,6 +172,68 @@ describe('CalendarQuickCreatePopover', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({title: '写方案', categoryId: 1}));
   });
 
+  it('blocks synchronous double submit from Enter then save click', async () => {
+    const submitResult = createDeferredSubmitResult();
+    const onSubmit = vi.fn().mockReturnValue(submitResult.promise);
+    render(
+      <CalendarQuickCreatePopover
+        draft={timedDraft}
+        categories={categories}
+        onCancel={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('任务标题'), {target: {value: '写方案'}});
+    fireEvent.keyDown(screen.getByLabelText('任务标题'), {key: 'Enter'});
+    fireEvent.click(screen.getByRole('button', {name: '保存'}));
+
+    expect(onSubmit).toHaveBeenCalledOnce();
+    submitResult.resolve({ok: true});
+    await waitFor(() => expect(screen.getByRole('button', {name: '保存'})).not.toBeDisabled());
+  });
+
+  it('recovers the save button and shows an error when submit rejects', async () => {
+    render(
+      <CalendarQuickCreatePopover
+        draft={timedDraft}
+        categories={categories}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn().mockRejectedValue(new Error('网络错误'))}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('任务标题'), {target: {value: '写方案'}});
+    fireEvent.click(screen.getByRole('button', {name: '保存'}));
+
+    expect(await screen.findByText('网络错误')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: '保存'})).not.toBeDisabled();
+  });
+
+  it('clears the no-category error when categories become available', () => {
+    const {rerender} = render(
+      <CalendarQuickCreatePopover
+        draft={timedDraft}
+        categories={[]}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    rerender(
+      <CalendarQuickCreatePopover
+        draft={timedDraft}
+        categories={categories}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('请先创建分类')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: '保存'})).not.toBeDisabled();
+    expect(screen.getByLabelText('任务分类')).toHaveValue('1');
+  });
+
   it('cancels from outside pointer down', () => {
     const onCancel = vi.fn();
     render(
@@ -176,5 +250,46 @@ describe('CalendarQuickCreatePopover', () => {
 
     fireEvent.pointerDown(screen.getByRole('button', {name: '外部区域'}));
     expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('removes the outside pointer down listener on unmount', () => {
+    const onCancel = vi.fn();
+    const {unmount} = render(
+      <div>
+        <button type="button">外部区域</button>
+        <CalendarQuickCreatePopover
+          draft={timedDraft}
+          categories={categories}
+          onCancel={onCancel}
+          onSubmit={vi.fn()}
+        />
+      </div>,
+    );
+
+    unmount();
+    fireEvent.pointerDown(document.body);
+
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it('does not report a React state update warning when a pending submit resolves after unmount', async () => {
+    const submitResult = createDeferredSubmitResult();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const {unmount} = render(
+      <CalendarQuickCreatePopover
+        draft={timedDraft}
+        categories={categories}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn().mockReturnValue(submitResult.promise)}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('任务标题'), {target: {value: '写方案'}});
+    fireEvent.click(screen.getByRole('button', {name: '保存'}));
+    unmount();
+    submitResult.resolve({ok: true});
+    await submitResult.promise;
+
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });

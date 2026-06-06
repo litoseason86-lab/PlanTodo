@@ -21,10 +21,20 @@ function formatDraftRange(draft: CalendarQuickCreateDraft): string {
 
 export function CalendarQuickCreatePopover({draft, categories, onCancel, onSubmit}: CalendarQuickCreatePopoverProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(false);
+  const requestIdRef = useRef(0);
+  const submittingRef = useRef(false);
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState(() => categories[0]?.id ?? 0);
   const [error, setError] = useState(categories.length === 0 ? '请先创建分类' : '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (categories.length === 0) {
@@ -36,6 +46,7 @@ export function CalendarQuickCreatePopover({draft, categories, onCancel, onSubmi
     if (!categories.some((category) => category.id === categoryId)) {
       setCategoryId(categories[0].id);
     }
+    setError((currentError) => (currentError === '请先创建分类' ? '' : currentError));
   }, [categories, categoryId]);
 
   useEffect(() => {
@@ -62,7 +73,7 @@ export function CalendarQuickCreatePopover({draft, categories, onCancel, onSubmi
   }, [onCancel]);
 
   async function submitForm() {
-    if (isSubmitting) return;
+    if (submittingRef.current) return;
 
     if (categories.length === 0) {
       setError('请先创建分类');
@@ -75,12 +86,27 @@ export function CalendarQuickCreatePopover({draft, categories, onCancel, onSubmi
       return;
     }
 
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    submittingRef.current = true;
     setIsSubmitting(true);
     setError('');
-    const result = await onSubmit({title: trimmedTitle, categoryId});
-    setIsSubmitting(false);
-    if (!result.ok) {
-      setError(result.message);
+    try {
+      const result = await onSubmit({title: trimmedTitle, categoryId});
+      if (mountedRef.current && requestIdRef.current === requestId && !result.ok) {
+        setError(result.message);
+      }
+    } catch (caughtError) {
+      if (mountedRef.current && requestIdRef.current === requestId) {
+        setError(caughtError instanceof Error ? caughtError.message : '创建失败');
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        submittingRef.current = false;
+        if (mountedRef.current) {
+          setIsSubmitting(false);
+        }
+      }
     }
   }
 
