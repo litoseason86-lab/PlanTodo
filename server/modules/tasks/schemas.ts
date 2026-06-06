@@ -1,12 +1,14 @@
 import {AppError} from '../../shared/errors/appError';
 import {TASK_STATUSES, type TaskStatus} from '../../../shared/domain/status';
-import {parseOptionalIsoDate, todayIsoDate} from '../../shared/http/dateParams';
+import {parseOptionalIsoDate} from '../../shared/http/dateParams';
 import {isLocalDateTimeString} from '../../../shared/lib/schedule';
+
+type ScheduledFilter = 'unscheduled' | 'scheduled' | 'all-day-without-time';
 
 export interface TaskBody {
   title: string;
   categoryId: number;
-  plannedDate: string;
+  plannedDate?: string;
   plannedEndDate?: string;
   startAt?: string;
   endAt?: string;
@@ -18,11 +20,30 @@ export interface TaskStatusBody {
 }
 
 export interface TaskScheduleBody {
-  plannedDate: string;
+  plannedDate?: string;
   plannedEndDate?: string;
   startAt?: string;
   endAt?: string;
   allDay: boolean;
+}
+
+export interface TaskQueryParams {
+  date?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  status?: TaskStatus;
+  categoryId?: number;
+  scheduled?: ScheduledFilter;
+  query?: string;
+}
+
+export interface BatchScheduleBody {
+  taskIds: number[];
+  plannedDate: string;
+}
+
+export interface BatchUnscheduleBody {
+  taskIds: number[];
 }
 
 function parseOptionalLocalDateTime(value: unknown, fieldName: string): string | undefined {
@@ -33,7 +54,26 @@ function parseOptionalLocalDateTime(value: unknown, fieldName: string): string |
   return value;
 }
 
+function parseNullableIsoDate(value: unknown, fieldName: string): string | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  return parseOptionalIsoDate(value, fieldName);
+}
+
+function parseOptionalBoolean(value: unknown, fieldName: string): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'boolean') {
+    throw new AppError(400, `${fieldName} must be a boolean`);
+  }
+  return value;
+}
+
 function assertScheduleBodyRules(body: TaskScheduleBody): void {
+  if (!body.plannedDate) {
+    if (!body.allDay) {
+      throw new AppError(400, 'Timed task requires plannedDate');
+    }
+    return;
+  }
   if (body.plannedEndDate && body.plannedEndDate < body.plannedDate) {
     throw new AppError(400, 'plannedEndDate must be after plannedDate');
   }
@@ -49,6 +89,49 @@ function assertScheduleBodyRules(body: TaskScheduleBody): void {
   ) {
     throw new AppError(400, 'Timed task date must match plannedDate');
   }
+  if (!body.allDay && body.endAt?.slice(0, 10) !== body.plannedDate) {
+    throw new AppError(400, 'Cross-day timed tasks are not supported yet');
+  }
+}
+
+function normalizeSchedulePayload(payload: Record<string, unknown>, requireAllDay: boolean): TaskScheduleBody {
+  const hasPlannedDateField = Object.prototype.hasOwnProperty.call(payload, 'plannedDate');
+  const hasScheduleDetails = [payload.plannedEndDate, payload.startAt, payload.endAt].some((value) => {
+    return value !== undefined && value !== null && value !== '';
+  });
+  const plannedDate = parseNullableIsoDate(payload.plannedDate, 'plannedDate');
+  const requestedAllDay = parseOptionalBoolean(payload.allDay, 'allDay');
+
+  if (!plannedDate) {
+    if (requestedAllDay === false || (!hasPlannedDateField && hasScheduleDetails)) {
+      throw new AppError(400, 'Timed task requires plannedDate');
+    }
+    return {
+      plannedDate: undefined,
+      plannedEndDate: undefined,
+      startAt: undefined,
+      endAt: undefined,
+      allDay: true,
+    };
+  }
+
+  const startAt = parseOptionalLocalDateTime(payload.startAt, 'startAt');
+  const endAt = parseOptionalLocalDateTime(payload.endAt, 'endAt');
+  const allDay = requestedAllDay ?? !(startAt && endAt);
+
+  if (requireAllDay && requestedAllDay === undefined) {
+    throw new AppError(400, 'allDay must be a boolean');
+  }
+
+  const schedule: TaskScheduleBody = {
+    plannedDate,
+    plannedEndDate: allDay ? parseOptionalIsoDate(payload.plannedEndDate, 'plannedEndDate') : undefined,
+    startAt: allDay ? undefined : startAt,
+    endAt: allDay ? undefined : endAt,
+    allDay,
+  };
+  assertScheduleBodyRules(schedule);
+  return schedule;
 }
 
 export function parseTaskId(value: string): number {
@@ -66,26 +149,12 @@ export function parseTaskBody(body: unknown): TaskBody {
     throw new AppError(400, 'Valid categoryId is required');
   }
 
-  const plannedDate =
-    typeof payload.plannedDate === 'string'
-      ? parseOptionalIsoDate(payload.plannedDate, 'plannedDate')!
-      : todayIsoDate();
-  const plannedEndDate = parseOptionalIsoDate(payload.plannedEndDate, 'plannedEndDate');
-  const startAt = parseOptionalLocalDateTime(payload.startAt, 'startAt');
-  const endAt = parseOptionalLocalDateTime(payload.endAt, 'endAt');
-  const allDay = typeof payload.allDay === 'boolean' ? payload.allDay : !(startAt && endAt);
-
-  const taskBody = {
+  const schedule = normalizeSchedulePayload(payload, false);
+  return {
     title: typeof payload.title === 'string' ? payload.title : '',
     categoryId,
-    plannedDate,
-    plannedEndDate: allDay ? plannedEndDate : undefined,
-    startAt: allDay ? undefined : startAt,
-    endAt: allDay ? undefined : endAt,
-    allDay,
+    ...schedule,
   };
-  assertScheduleBodyRules({...taskBody, allDay});
-  return taskBody;
 }
 
 export function parseTaskStatusBody(body: unknown): TaskStatusBody {
@@ -100,13 +169,7 @@ export function parseTaskStatusBody(body: unknown): TaskStatusBody {
   };
 }
 
-export function parseTaskQuery(query: Record<string, unknown>): {
-  date?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  status?: TaskStatus;
-  categoryId?: number;
-} {
+export function parseTaskQuery(query: Record<string, unknown>): TaskQueryParams {
   const date = parseOptionalIsoDate(query.date, 'date');
   const dateFrom = parseOptionalIsoDate(query.dateFrom, 'dateFrom');
   const dateTo = parseOptionalIsoDate(query.dateTo, 'dateTo');
@@ -124,6 +187,14 @@ export function parseTaskQuery(query: Record<string, unknown>): {
   const categoryIdValue = query.categoryId;
   const parsedCategoryId =
     typeof categoryIdValue === 'string' ? Number.parseInt(categoryIdValue, 10) : undefined;
+  const scheduled = typeof query.scheduled === 'string' ? query.scheduled : undefined;
+  if (scheduled && !['unscheduled', 'scheduled', 'all-day-without-time'].includes(scheduled)) {
+    throw new AppError(400, 'scheduled must be one of: unscheduled, scheduled, all-day-without-time');
+  }
+  if (scheduled === 'unscheduled' && (date || dateFrom || dateTo)) {
+    throw new AppError(400, 'scheduled=unscheduled cannot be combined with date filters');
+  }
+  const trimmedQuery = typeof query.query === 'string' ? query.query.trim() : undefined;
 
   return {
     date,
@@ -136,28 +207,54 @@ export function parseTaskQuery(query: Record<string, unknown>): {
       parsedCategoryId !== undefined && !Number.isNaN(parsedCategoryId)
         ? parsedCategoryId
         : undefined,
+    scheduled: scheduled as ScheduledFilter | undefined,
+    query: trimmedQuery || undefined,
   };
 }
 
 export function parseTaskScheduleBody(body: unknown): TaskScheduleBody {
+  return normalizeSchedulePayload((body ?? {}) as Record<string, unknown>, true);
+}
+
+function parseTaskIds(value: unknown): number[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new AppError(400, 'taskIds must be a non-empty array');
+  }
+
+  const taskIds = value.map((item) => {
+    const id = typeof item === 'number'
+      ? item
+      : typeof item === 'string' && /^[1-9]\d*$/.test(item)
+        ? Number.parseInt(item, 10)
+        : Number.NaN;
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      throw new AppError(400, 'taskIds must contain positive integers');
+    }
+    return id;
+  });
+
+  if (new Set(taskIds).size !== taskIds.length) {
+    throw new AppError(400, 'taskIds must be unique');
+  }
+
+  return taskIds;
+}
+
+export function parseBatchScheduleBody(body: unknown): BatchScheduleBody {
   const payload = (body ?? {}) as Record<string, unknown>;
   const plannedDate = parseOptionalIsoDate(payload.plannedDate, 'plannedDate');
   if (!plannedDate) {
     throw new AppError(400, 'Invalid plannedDate');
   }
-
-  if (typeof payload.allDay !== 'boolean') {
-    throw new AppError(400, 'allDay must be a boolean');
-  }
-  const allDay = payload.allDay;
-  const schedule: TaskScheduleBody = {
+  return {
+    taskIds: parseTaskIds(payload.taskIds),
     plannedDate,
-    plannedEndDate: allDay ? parseOptionalIsoDate(payload.plannedEndDate, 'plannedEndDate') : undefined,
-    startAt: allDay ? undefined : parseOptionalLocalDateTime(payload.startAt, 'startAt'),
-    endAt: allDay ? undefined : parseOptionalLocalDateTime(payload.endAt, 'endAt'),
-    allDay,
   };
+}
 
-  assertScheduleBodyRules(schedule);
-  return schedule;
+export function parseBatchUnscheduleBody(body: unknown): BatchUnscheduleBody {
+  const payload = (body ?? {}) as Record<string, unknown>;
+  return {
+    taskIds: parseTaskIds(payload.taskIds),
+  };
 }

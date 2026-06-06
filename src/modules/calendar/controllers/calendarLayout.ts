@@ -74,6 +74,9 @@ export function groupTasksByDate(tasks: Task[], dateFrom: string, dateTo: string
     if (!taskIntersectsDateRange(task, dateFrom, dateTo)) {
       continue;
     }
+    if (!task.plannedDate) {
+      continue;
+    }
 
     const startDate = task.startAt ? task.startAt.slice(0, 10) : task.plannedDate;
     const endDate = task.endAt ? task.endAt.slice(0, 10) : task.plannedEndDate ?? task.plannedDate;
@@ -90,6 +93,10 @@ export function groupTasksByDate(tasks: Task[], dateFrom: string, dateTo: string
 
 export function segmentAllDayTask(task: Task, dateFrom: string, dateTo: string): AllDaySegment {
   const canonical = toCanonicalTask(task);
+  if (!canonical.plannedDate) {
+    throw new Error('Cannot segment unscheduled task');
+  }
+
   const startsOn = canonical.plannedDate < dateFrom ? dateFrom : canonical.plannedDate;
   const realEnd = canonical.plannedEndDate ?? canonical.plannedDate;
   const endsOn = realEnd > dateTo ? dateTo : realEnd;

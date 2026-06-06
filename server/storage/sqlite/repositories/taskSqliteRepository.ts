@@ -11,6 +11,10 @@ import type {TaskStatus} from '../../../../shared/domain/status';
 import {taskIntersectsDateRange} from '../../../../shared/lib/schedule';
 import {mapTaskRow, type TaskRow} from './rowMappers';
 
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
 export class TaskSqliteRepository implements TaskRepository {
   constructor(private readonly db: Database.Database) {}
 
@@ -25,6 +29,21 @@ export class TaskSqliteRepository implements TaskRepository {
       clauses.push('category_id = ?');
       values.push(filters.categoryId);
     }
+    if (filters.scheduled === 'unscheduled') {
+      clauses.push('planned_date is null');
+    } else if (filters.scheduled === 'scheduled') {
+      clauses.push('planned_date is not null');
+    } else if (filters.scheduled === 'all-day-without-time') {
+      clauses.push('planned_date is not null');
+      clauses.push('all_day = 1');
+      clauses.push('planned_end_date is null');
+      clauses.push('start_at is null');
+      clauses.push('end_at is null');
+    }
+    if (filters.query) {
+      clauses.push("lower(title) like ? escape '\\'");
+      values.push(`%${escapeLike(filters.query.toLocaleLowerCase())}%`);
+    }
 
     const rangeStart = filters.plannedDate ?? filters.dateFrom;
     const rangeEnd = filters.plannedDate ?? filters.dateTo;
@@ -32,6 +51,7 @@ export class TaskSqliteRepository implements TaskRepository {
       clauses.push(`(
         (
           all_day = 1
+          and planned_date is not null
           and planned_date <= ?
           and coalesce(planned_end_date, planned_date) >= ?
         )
@@ -76,11 +96,11 @@ export class TaskSqliteRepository implements TaskRepository {
         input.userId,
         input.categoryId,
         input.title.trim(),
-        input.plannedDate,
-        input.allDay === false ? null : input.plannedEndDate ?? null,
-        input.allDay === false ? input.startAt ?? null : null,
-        input.allDay === false ? input.endAt ?? null : null,
-        input.allDay === false ? 0 : 1,
+        input.plannedDate ?? null,
+        input.plannedDate && (input.allDay ?? true) ? input.plannedEndDate ?? null : null,
+        input.plannedDate && input.allDay === false ? input.startAt ?? null : null,
+        input.plannedDate && input.allDay === false ? input.endAt ?? null : null,
+        input.plannedDate && input.allDay === false ? 0 : 1,
         'TODO',
         now,
         now,
@@ -113,11 +133,11 @@ export class TaskSqliteRepository implements TaskRepository {
         where id = ? and user_id = ?
       `)
       .run(
-        input.plannedDate,
-        input.allDay ? input.plannedEndDate ?? null : null,
-        input.allDay ? null : input.startAt ?? null,
-        input.allDay ? null : input.endAt ?? null,
-        input.allDay ? 1 : 0,
+        input.plannedDate ?? null,
+        input.plannedDate && input.allDay ? input.plannedEndDate ?? null : null,
+        input.plannedDate && input.allDay === false ? input.startAt ?? null : null,
+        input.plannedDate && input.allDay === false ? input.endAt ?? null : null,
+        input.plannedDate && input.allDay === false ? 0 : 1,
         now,
         input.taskId,
         input.userId,
@@ -127,6 +147,22 @@ export class TaskSqliteRepository implements TaskRepository {
       return undefined;
     }
     return this.getById(input.taskId, input.userId);
+  }
+
+  batchUpdateSchedules(inputs: UpdateTaskScheduleInput[]): Task[] {
+    const updateSchedules = this.db.transaction(() => {
+      const updated: Task[] = [];
+      for (const input of inputs) {
+        const task = this.updateSchedule(input);
+        if (!task) {
+          throw new Error('Task not found');
+        }
+        updated.push(task);
+      }
+      return updated;
+    });
+
+    return updateSchedules();
   }
 
   remove(taskId: number, userId: number): boolean {

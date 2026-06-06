@@ -3,7 +3,9 @@ import type Database from 'better-sqlite3';
 interface Migration {
   version: number;
   name: string;
-  sql: string;
+  sql?: string;
+  apply?: (db: Database.Database) => void;
+  transaction?: boolean;
 }
 
 const migrations: Migration[] = [
@@ -115,7 +117,72 @@ const migrations: Migration[] = [
       create index if not exists idx_tasks_user_start_at on tasks(user_id, start_at);
     `,
   },
+  {
+    version: 4,
+    name: 'nullable_task_planned_date',
+    transaction: false,
+    apply(db) {
+      db.pragma('foreign_keys = OFF');
+      try {
+        db.exec('begin');
+        db.exec(`
+          create table tasks_new (
+            id integer primary key,
+            user_id integer not null,
+            category_id integer not null,
+            title text not null,
+            planned_date text,
+            status text not null,
+            created_at text not null,
+            updated_at text not null,
+            planned_end_date text,
+            start_at text,
+            end_at text,
+            all_day integer not null default 1,
+            foreign key (user_id) references users(id),
+            foreign key (category_id) references categories(id)
+          );
+
+          insert into tasks_new (
+            id, user_id, category_id, title, planned_date, status, created_at, updated_at,
+            planned_end_date, start_at, end_at, all_day
+          )
+          select
+            id, user_id, category_id, title, planned_date, status, created_at, updated_at,
+            planned_end_date, start_at, end_at, all_day
+          from tasks;
+
+          drop table tasks;
+          alter table tasks_new rename to tasks;
+
+          create index if not exists idx_tasks_user_date on tasks(user_id, planned_date);
+          create index if not exists idx_tasks_user_status on tasks(user_id, status);
+          create index if not exists idx_tasks_user_category on tasks(user_id, category_id);
+          create index if not exists idx_tasks_user_planned_end_date on tasks(user_id, planned_end_date);
+          create index if not exists idx_tasks_user_start_at on tasks(user_id, start_at);
+        `);
+        const violations = db.pragma('foreign_key_check') as unknown[];
+        if (violations.length > 0) {
+          throw new Error('SQLite foreign key check failed after nullable planned_date migration');
+        }
+        db.exec('commit');
+      } catch (error) {
+        db.exec('rollback');
+        throw error;
+      } finally {
+        db.pragma('foreign_keys = ON');
+      }
+    },
+  },
 ];
+
+function applyMigrationSql(db: Database.Database, migration: Migration): void {
+  if (migration.sql) {
+    db.exec(migration.sql);
+    return;
+  }
+  migration.apply?.(db);
+}
 
 export function runMigrations(db: Database.Database): void {
   db.exec(`
@@ -135,15 +202,19 @@ export function runMigrations(db: Database.Database): void {
       continue;
     }
 
-    const applyMigration = db.transaction(() => {
-      db.exec(migration.sql);
+    const applyAndRecord = () => {
+      applyMigrationSql(db, migration);
       db.prepare('insert into schema_migrations (version, name, executed_at) values (?, ?, ?)').run(
         migration.version,
         migration.name,
         new Date().toISOString(),
       );
-    });
+    };
 
-    applyMigration();
+    if (migration.transaction === false) {
+      applyAndRecord();
+    } else {
+      db.transaction(applyAndRecord)();
+    }
   }
 }

@@ -1,0 +1,64 @@
+<h2>PlanTodo 功能优化：先选主战场</h2>
+<p class="subtitle">当前产品已经覆盖任务、分类、专注、日报、周报。下一步别平均用力，先挑一个最能提高使用频率的方向。</p>
+
+<div class="cards">
+  <div class="card" data-choice="execution" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">今日执行台</div>
+        <div class="mockup-body">
+          <div class="mock-nav">今日目标 · 进行中 · 快速补录</div>
+          <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:12px;margin-top:12px">
+            <div class="placeholder">任务流：优先级 / 状态 / 一键专注</div>
+            <div class="placeholder">当前专注与今日进度</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 执行体验优化</h3>
+      <p>让“今天该做什么、下一步做什么、怎么快速推进”更直接。适合你已经在用，但觉得操作阻力大。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="planning" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">计划与任务库</div>
+        <div class="mockup-body">
+          <div class="mock-sidebar">筛选 · 分类 · 日期 · 模板</div>
+          <div class="mock-content">批量规划 / 拖拽排序 / 延期处理</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 计划管理优化</h3>
+      <p>强化任务库、筛选、批量调整、重复任务和计划编排。适合任务多、维护成本高的场景。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="review" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">复盘与反馈</div>
+        <div class="mockup-body">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+            <div class="placeholder">完成率</div>
+            <div class="placeholder">专注趋势</div>
+            <div class="placeholder">拖延来源</div>
+          </div>
+          <div class="placeholder" style="margin-top:12px">复盘建议与下周调整</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 复盘洞察优化</h3>
+      <p>让日报/周报从“记录结果”变成“发现问题”。适合你想用数据修正执行策略。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>我的初步判断</h3>
+  <p>优先做 A。计划工具的核心不是功能数量，而是每天打开后能马上进入行动。执行台不顺，后面的计划和复盘都会变成摆设。</p>
+</div>

@@ -26,7 +26,7 @@ interface JsonTask {
   userId: number;
   categoryId: number;
   title: string;
-  plannedDate: string;
+  plannedDate?: string | null;
   plannedEndDate?: string;
   startAt?: string;
   endAt?: string;
@@ -161,7 +161,11 @@ export function importJsonToSqlite({jsonPath, sqlitePath, force = false}: Import
       }
 
       for (const task of json.tasks ?? []) {
-        const allDay = task.allDay !== false;
+        const plannedDate = task.plannedDate?.trim() || null;
+        const allDay = plannedDate ? task.allDay !== false : true;
+        const plannedEndDate = plannedDate && allDay ? task.plannedEndDate ?? null : null;
+        const startAt = plannedDate && !allDay ? task.startAt ?? null : null;
+        const endAt = plannedDate && !allDay ? task.endAt ?? null : null;
         db.prepare(
           `insert into tasks (
              id, user_id, category_id, title, planned_date, planned_end_date, start_at, end_at, all_day, status, created_at, updated_at
@@ -172,10 +176,10 @@ export function importJsonToSqlite({jsonPath, sqlitePath, force = false}: Import
           task.userId,
           task.categoryId,
           task.title,
-          task.plannedDate,
-          allDay ? task.plannedEndDate ?? null : null,
-          allDay ? null : task.startAt ?? null,
-          allDay ? null : task.endAt ?? null,
+          plannedDate,
+          plannedEndDate,
+          startAt,
+          endAt,
           allDay ? 1 : 0,
           task.status,
           task.createdAt,

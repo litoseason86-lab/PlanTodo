@@ -1,0 +1,55 @@
+<h2>PlanTodo 日历功能：按复杂度分层</h2>
+<p class="subtitle">参考滴答清单 6 篇日历文档后，日历不是一个页面，而是一组视图、排期能力和显示规则。当前 PlanTodo 只有 plannedDate，没有开始/结束时间，所以必须先定一期边界。</p>
+
+<div class="options">
+  <div class="option" data-choice="phase1" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>基础日历：月视图 + 列表视图</h3>
+      <p>基于现有 plannedDate 显示每日任务；支持日期跳转、显示/隐藏已完成、按分类筛选、点击日期创建任务。数据模型几乎不动。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="phase2" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>排期日历：周视图 + 时间轴 + 无时间任务安排</h3>
+      <p>新增开始时间、结束时间、全天、跨天等字段；支持周时间轴、任务拖入日期/时间段、调整时长。这才接近滴答周视图的核心。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="phase3" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>完整日历系统：年热力图 + 并列任务 + 多视图联动</h3>
+      <p>加入年视图热力图、任务与日历并列显示、日程视图、多日/多周切换、显示范围设置。价值高，但实现成本和测试面都会明显上升。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>关键事实</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>当前已有基础</h4>
+      <ul>
+        <li>任务已有 plannedDate，可支撑按天/月聚合。</li>
+        <li>已有分类、状态、专注记录，可用于筛选和复盘。</li>
+        <li>前后端已有模块分层，适合新增 calendar 模块。</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>当前缺口</h4>
+      <ul>
+        <li>没有 startTime / endTime，无法做真正时间轴。</li>
+        <li>没有 allDay / cross-day 语义，跨天任务只能伪装。</li>
+        <li>没有拖拽排期交互和显示设置持久化。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>我的建议</h3>
+  <p>选 B 做一期。A 太弱，只是换皮；C 太大，会把数据模型、交互和统计一次性压爆。B 能建立正确的日历底座：时间字段、周视图、无时间任务安排、拖拽排期。</p>
+</div>

@@ -1,8 +1,9 @@
 import type {Task} from '../domain/entities';
 import {addIsoDateDays, isIsoDateString} from './date';
 
-export type TaskScheduleKind = 'date' | 'cross-day' | 'timed';
-export type LegacyTask = Omit<Task, 'allDay'> & {
+export type TaskScheduleKind = 'unscheduled' | 'date' | 'cross-day' | 'timed';
+export type LegacyTask = Omit<Task, 'plannedDate' | 'allDay'> & {
+  plannedDate?: string;
   allDay?: boolean;
   plannedEndDate?: string;
   startAt?: string;
@@ -36,10 +37,12 @@ export function addMinutesToLocalDateTime(value: string, minutes: number): strin
   const hour = Number(value.slice(11, 13));
   const minute = Number(value.slice(14, 16));
   const totalMinutes = hour * 60 + minute + minutes;
-  const dayOffset = Math.floor(totalMinutes / (24 * 60));
-  const minutesInDay = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60);
 
-  return makeLocalDateTime(addIsoDateDays(date, dayOffset), Math.floor(minutesInDay / 60), minutesInDay % 60);
+  if (totalMinutes < 0 || totalMinutes >= 24 * 60) {
+    throw new Error('Local datetime addition crossed day boundary');
+  }
+
+  return makeLocalDateTime(date, Math.floor(totalMinutes / 60), totalMinutes % 60);
 }
 
 export function getLocalDateFromDateTime(value: string): string {
@@ -47,6 +50,17 @@ export function getLocalDateFromDateTime(value: string): string {
 }
 
 export function toCanonicalTask(task: LegacyTask): Task {
+  if (!task.plannedDate) {
+    return {
+      ...task,
+      plannedDate: undefined,
+      plannedEndDate: undefined,
+      startAt: undefined,
+      endAt: undefined,
+      allDay: true,
+    };
+  }
+
   const allDay = task.allDay ?? true;
 
   return {
@@ -60,6 +74,9 @@ export function toCanonicalTask(task: LegacyTask): Task {
 
 export function getTaskScheduleKind(task: LegacyTask): TaskScheduleKind {
   const canonical = toCanonicalTask(task);
+  if (!canonical.plannedDate) {
+    return 'unscheduled';
+  }
   if (!canonical.allDay && canonical.startAt && canonical.endAt) {
     return 'timed';
   }
@@ -71,6 +88,10 @@ export function getTaskScheduleKind(task: LegacyTask): TaskScheduleKind {
 
 export function taskIntersectsDateRange(task: LegacyTask, dateFrom: string, dateTo: string): boolean {
   const canonical = toCanonicalTask(task);
+  if (!canonical.plannedDate) {
+    return false;
+  }
+
   const startDate = canonical.startAt ? getLocalDateFromDateTime(canonical.startAt) : canonical.plannedDate;
   const endDate = canonical.endAt
     ? getLocalDateFromDateTime(canonical.endAt)

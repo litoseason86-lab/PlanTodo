@@ -315,11 +315,63 @@ describe('CalendarPanel', () => {
       />,
     );
 
-    const math = await screen.findByText('13:00-14:00 数学');
-    const english = await screen.findByText('13:30-14:30 英语');
+    const math = await screen.findByLabelText('2026-06-06 13:00-14:00 数学');
+    const english = await screen.findByLabelText('2026-06-06 13:30-14:30 英语');
 
-    expect(math.parentElement).toHaveStyle({width: '50%'});
-    expect(english.parentElement).toHaveStyle({width: '50%'});
+    expect(math).toHaveStyle({width: 'calc((100% - 4px) / 2)'});
+    expect(english).toHaveStyle({width: 'calc((100% - 4px) / 2)'});
+  });
+
+  it('renders identical-time timed tasks with lane gutters and title-first labels', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        categoryId: 1,
+        title: '数学复习',
+        plannedDate: '2026-06-06',
+        allDay: false,
+        startAt: '2026-06-06T02:00:00.000',
+        endAt: '2026-06-06T02:45:00.000',
+        status: 'TODO',
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 2,
+        userId: 1,
+        categoryId: 1,
+        title: '英语听力',
+        plannedDate: '2026-06-06',
+        allDay: false,
+        startAt: '2026-06-06T02:00:00.000',
+        endAt: '2026-06-06T02:45:00.000',
+        status: 'TODO',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+
+    render(
+      <CalendarPanel
+        categories={[{id: 1, userId: 1, name: '学习', color: '#3b82f6', sortOrder: 1, createdAt: '', updatedAt: ''}]}
+        styleContext={{primary: '#fb7185', primaryLight: '#ffe4e6', secondary: '#fda4af'}}
+        showToast={vi.fn()}
+        initialDate="2026-06-06"
+      />,
+    );
+
+    const math = await screen.findByLabelText('2026-06-06 02:00-02:45 数学复习');
+    const english = await screen.findByLabelText('2026-06-06 02:00-02:45 英语听力');
+
+    expect(math).toHaveTextContent('数学复习');
+    expect(math).toHaveTextContent('02:00-02:45');
+    expect(english).toHaveTextContent('英语听力');
+    expect(english).toHaveTextContent('02:00-02:45');
+    expect(math).toHaveStyle({width: 'calc((100% - 4px) / 2)'});
+    expect(english.getAttribute('style')).toContain('left: calc(1 *');
+    expect(english.getAttribute('style')).toContain('+ 4px');
   });
 
   it('drags a timed task resize handle', async () => {

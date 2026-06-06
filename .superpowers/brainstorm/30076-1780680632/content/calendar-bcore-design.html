@@ -1,0 +1,61 @@
+<h2>B-core 设计草案：日历排期底座</h2>
+<p class="subtitle">目标：一期建立真正可排期的日历，而不是只把任务按日期画成格子。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">数据流</div>
+    <div class="mockup-body">
+      <div class="placeholder">Task 增加 schedule 字段：plannedDate / startAt / endAt / allDay</div>
+      <div class="placeholder">Tasks API 增加日期范围查询与排期更新</div>
+      <div class="placeholder">Calendar Controller 负责视图切换、筛选和显示设置</div>
+      <div class="placeholder">Calendar Panel 渲染月 / 周 / 列表</div>
+      <div class="placeholder">Focus Sessions 作为专注记录 overlay</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">用户界面</div>
+    <div class="mockup-body">
+      <div class="mock-nav">月视图 · 周视图 · 列表视图 · 今天</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+        <div class="placeholder">左：无时间任务 / 分类筛选</div>
+        <div class="placeholder">右：日历主体 / 时间轴</div>
+      </div>
+      <div class="placeholder" style="margin-top:12px">显示设置：范围 / 已完成 / 分类颜色 / 专注记录</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>一期交互边界</h3>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="month" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>月视图</h3>
+        <p>按日期格显示任务；点击日期创建任务；拖任务到日期改变 plannedDate。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="week" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>周视图</h3>
+        <p>全天栏 + 竖向时间轴；有 startAt/endAt 的任务进入时间轴；无时间任务在全天栏或侧栏。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="list" onclick="toggleSelect(this)">
+      <div class="letter">3</div>
+      <div class="content">
+        <h3>列表视图</h3>
+        <p>按天分组显示任务，支持显示时间轴摘要，适合轻量浏览。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="settings" onclick="toggleSelect(this)">
+      <div class="letter">4</div>
+      <div class="content">
+        <h3>基础显示设置</h3>
+        <p>显示范围、显示已完成、分类颜色、专注记录。暂不做农历、节假日、辅助时区、批量推迟。</p>
+      </div>
+    </div>
+  </div>
+</div>

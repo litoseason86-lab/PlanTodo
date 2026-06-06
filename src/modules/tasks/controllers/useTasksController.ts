@@ -26,6 +26,9 @@ export function filterTasks(tasks: Task[], filters: TaskFilterState): Task[] {
     }
 
     if (filters.dateScope === 'seven-days') {
+      if (!task.plannedDate) {
+        return false;
+      }
       const limit = addIsoDateDays(filters.selectedDate, 7);
       return task.plannedDate >= filters.selectedDate && task.plannedDate <= limit;
     }

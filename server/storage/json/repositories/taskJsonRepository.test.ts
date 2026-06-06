@@ -218,4 +218,86 @@ describe('TaskJsonRepository', () => {
       endAt: '2026-06-06T10:00:00.000',
     });
   });
+
+  it('creates and filters unscheduled json tasks', () => {
+    const filePath = createTempFilePath();
+    const store = new JsonFileStore(filePath);
+    const repository = new TaskJsonRepository(store);
+
+    const unscheduled = repository.create({
+      userId: 1,
+      categoryId: 1,
+      title: '  未排期  ',
+      plannedDate: undefined,
+      allDay: true,
+    });
+    repository.create({
+      userId: 1,
+      categoryId: 1,
+      title: '已排期',
+      plannedDate: '2026-06-06',
+      allDay: true,
+    });
+
+    expect(unscheduled).toMatchObject({
+      title: '未排期',
+      plannedDate: undefined,
+      allDay: true,
+    });
+    expect(repository.listByFilters({userId: 1}).map((task) => task.title)).toEqual(['未排期', '已排期']);
+    expect(repository.listByFilters({userId: 1, scheduled: 'unscheduled'}).map((task) => task.title)).toEqual(['未排期']);
+    expect(repository.listByFilters({userId: 1, plannedDate: '2026-06-06'}).map((task) => task.title)).toEqual(['已排期']);
+  });
+
+  it('filters json all-day-without-time tasks and query text', () => {
+    const filePath = createTempFilePath();
+    const store = new JsonFileStore(filePath);
+    const schema = createEmptyDatabaseSchema();
+    schema.tasks = [
+      {id: 1, userId: 1, categoryId: 1, title: '写周报', plannedDate: '2026-06-06', allDay: true, status: 'TODO', createdAt: '1', updatedAt: '1'},
+      {id: 2, userId: 1, categoryId: 1, title: '周报跨天', plannedDate: '2026-06-06', plannedEndDate: '2026-06-07', allDay: true, status: 'TODO', createdAt: '2', updatedAt: '2'},
+      {id: 3, userId: 1, categoryId: 1, title: '会议周报', plannedDate: '2026-06-06', startAt: '2026-06-06T09:00:00.000', endAt: '2026-06-06T10:00:00.000', allDay: false, status: 'TODO', createdAt: '3', updatedAt: '3'},
+    ];
+    schema.sequences.tasks = 3;
+    store.write(schema);
+
+    const repository = new TaskJsonRepository(store);
+
+    expect(repository.listByFilters({
+      userId: 1,
+      scheduled: 'all-day-without-time',
+      dateFrom: '2026-06-01',
+      dateTo: '2026-06-07',
+      query: '周报',
+    }).map((task) => task.title)).toEqual(['写周报']);
+  });
+
+  it('batch updates json schedules in a single store update', () => {
+    const filePath = createTempFilePath();
+    const store = new JsonFileStore(filePath);
+    const repository = new TaskJsonRepository(store);
+    const first = repository.create({userId: 1, categoryId: 1, title: 'A', plannedDate: undefined, allDay: true});
+    const second = repository.create({userId: 1, categoryId: 1, title: 'B', plannedDate: undefined, allDay: true});
+
+    const updated = repository.batchUpdateSchedules([
+      {taskId: first.id, userId: 1, plannedDate: '2026-06-08', allDay: true},
+      {taskId: second.id, userId: 1, plannedDate: '2026-06-08', allDay: true},
+    ]);
+
+    expect(updated.map((task) => task.plannedDate)).toEqual(['2026-06-08', '2026-06-08']);
+  });
+
+  it('does not partially update json schedules when a batch task is missing', () => {
+    const filePath = createTempFilePath();
+    const store = new JsonFileStore(filePath);
+    const repository = new TaskJsonRepository(store);
+    const first = repository.create({userId: 1, categoryId: 1, title: 'A', plannedDate: undefined, allDay: true});
+
+    expect(() => repository.batchUpdateSchedules([
+      {taskId: first.id, userId: 1, plannedDate: '2026-06-08', allDay: true},
+      {taskId: 999, userId: 1, plannedDate: '2026-06-08', allDay: true},
+    ])).toThrow('Task not found');
+
+    expect(repository.getById(first.id, 1)?.plannedDate).toBeUndefined();
+  });
 });

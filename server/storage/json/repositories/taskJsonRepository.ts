@@ -9,6 +9,27 @@ import type {TaskStatus} from '../../../../shared/domain/status';
 import {taskIntersectsDateRange, toCanonicalTask} from '../../../../shared/lib/schedule';
 import {JsonFileStore} from '../fileStore';
 
+function matchesScheduledFilter(task: Task, scheduled: TaskFilters['scheduled']): boolean {
+  if (!scheduled) return true;
+  if (scheduled === 'unscheduled') return !task.plannedDate;
+  if (scheduled === 'scheduled') return Boolean(task.plannedDate);
+  return Boolean(task.plannedDate && task.allDay && !task.plannedEndDate && !task.startAt && !task.endAt);
+}
+
+function matchesQuery(task: Task, query: string | undefined): boolean {
+  if (!query) return true;
+  return task.title.toLocaleLowerCase().includes(query.toLocaleLowerCase());
+}
+
+function applyScheduleToTask(task: Task, input: UpdateTaskScheduleInput): void {
+  task.plannedDate = input.plannedDate;
+  task.plannedEndDate = input.plannedDate && input.allDay ? input.plannedEndDate : undefined;
+  task.startAt = input.plannedDate && !input.allDay ? input.startAt : undefined;
+  task.endAt = input.plannedDate && !input.allDay ? input.endAt : undefined;
+  task.allDay = input.plannedDate ? input.allDay : true;
+  task.updatedAt = new Date().toISOString();
+}
+
 export class TaskJsonRepository implements TaskRepository {
   constructor(private readonly store: JsonFileStore) {}
 
@@ -22,6 +43,8 @@ export class TaskJsonRepository implements TaskRepository {
         if (filters.dateFrom && filters.dateTo && !taskIntersectsDateRange(task, filters.dateFrom, filters.dateTo)) return false;
         if (filters.status && task.status !== filters.status) return false;
         if (filters.categoryId && task.categoryId !== filters.categoryId) return false;
+        if (!matchesScheduledFilter(task, filters.scheduled)) return false;
+        if (!matchesQuery(task, filters.query)) return false;
         return true;
       })
       .sort((left, right) => {
@@ -44,10 +67,10 @@ export class TaskJsonRepository implements TaskRepository {
         categoryId: input.categoryId,
         title: input.title.trim(),
         plannedDate: input.plannedDate,
-        plannedEndDate: (input.allDay ?? true) ? input.plannedEndDate : undefined,
-        startAt: input.allDay === false ? input.startAt : undefined,
-        endAt: input.allDay === false ? input.endAt : undefined,
-        allDay: input.allDay ?? true,
+        plannedEndDate: input.plannedDate && (input.allDay ?? true) ? input.plannedEndDate : undefined,
+        startAt: input.plannedDate && input.allDay === false ? input.startAt : undefined,
+        endAt: input.plannedDate && input.allDay === false ? input.endAt : undefined,
+        allDay: input.plannedDate ? input.allDay ?? true : true,
         status: 'TODO',
         createdAt: now,
         updatedAt: now,
@@ -76,14 +99,27 @@ export class TaskJsonRepository implements TaskRepository {
         return undefined;
       }
 
-      task.plannedDate = input.plannedDate;
-      task.plannedEndDate = input.allDay ? input.plannedEndDate : undefined;
-      task.startAt = input.allDay ? undefined : input.startAt;
-      task.endAt = input.allDay ? undefined : input.endAt;
-      task.allDay = input.allDay;
-      task.updatedAt = new Date().toISOString();
+      applyScheduleToTask(task, input);
 
       return toCanonicalTask(task);
+    });
+  }
+
+  batchUpdateSchedules(inputs: UpdateTaskScheduleInput[]): Task[] {
+    return this.store.update((data) => {
+      const targets = inputs.map((input) => {
+        const task = data.tasks.find((item) => item.id === input.taskId && item.userId === input.userId);
+        if (!task) {
+          throw new Error('Task not found');
+        }
+        return {task, input};
+      });
+
+      for (const {task, input} of targets) {
+        applyScheduleToTask(task, input);
+      }
+
+      return targets.map(({task}) => toCanonicalTask(task));
     });
   }
 

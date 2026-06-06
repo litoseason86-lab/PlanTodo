@@ -255,4 +255,72 @@ describe('importJsonToSqlite', () => {
     ]);
     db.close();
   });
+
+  it('imports unscheduled json tasks with nullable sqlite planned_date', () => {
+    const {jsonPath, sqlitePath} = createTestFiles();
+    fs.writeFileSync(jsonPath, JSON.stringify({
+      users: [{id: 1, username: 'demo', displayName: 'Demo', createdAt: '2026-06-06T00:00:00.000Z'}],
+      categories: [{id: 1, userId: 1, name: '工作', color: '#000000', sortOrder: 1, createdAt: '2026-06-06T00:00:00.000Z', updatedAt: '2026-06-06T00:00:00.000Z'}],
+      tasks: [{
+        id: 1,
+        userId: 1,
+        categoryId: 1,
+        title: '未安排',
+        plannedDate: null,
+        plannedEndDate: '2026-06-08',
+        startAt: '2026-06-06T09:00:00.000',
+        endAt: '2026-06-06T10:00:00.000',
+        allDay: false,
+        status: 'TODO',
+        createdAt: '2026-06-06T00:00:00.000Z',
+        updatedAt: '2026-06-06T00:00:00.000Z',
+      }],
+      sequences: {categories: 1, tasks: 1, taskExecutionSessions: 0, dailyReports: 0, weeklyReviews: 0},
+    }));
+
+    importJsonToSqlite({jsonPath, sqlitePath});
+
+    const db = openSqliteClient(sqlitePath);
+    try {
+      expect(db.prepare('select planned_date, planned_end_date, start_at, end_at, all_day from tasks where id = 1').get()).toEqual({
+        planned_date: null,
+        planned_end_date: null,
+        start_at: null,
+        end_at: null,
+        all_day: 1,
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  it('imports empty plannedDate as nullable sqlite planned_date', () => {
+    const {jsonPath, sqlitePath} = createTestFiles();
+    fs.writeFileSync(jsonPath, JSON.stringify({
+      users: [{id: 1, username: 'demo', displayName: 'Demo', createdAt: '2026-06-06T00:00:00.000Z'}],
+      categories: [{id: 1, userId: 1, name: '工作', color: '#000000', sortOrder: 1, createdAt: '2026-06-06T00:00:00.000Z', updatedAt: '2026-06-06T00:00:00.000Z'}],
+      tasks: [{
+        id: 1,
+        userId: 1,
+        categoryId: 1,
+        title: '空日期',
+        plannedDate: '',
+        status: 'TODO',
+        createdAt: '2026-06-06T00:00:00.000Z',
+        updatedAt: '2026-06-06T00:00:00.000Z',
+      }],
+    }));
+
+    importJsonToSqlite({jsonPath, sqlitePath});
+
+    const db = openSqliteClient(sqlitePath);
+    try {
+      expect(db.prepare('select planned_date, all_day from tasks where id = 1').get()).toEqual({
+        planned_date: null,
+        all_day: 1,
+      });
+    } finally {
+      db.close();
+    }
+  });
 });

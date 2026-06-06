@@ -30,6 +30,36 @@ const baseTasks = [
   },
 ];
 
+type TasksPanelProps = Parameters<typeof TasksPanel>[0];
+
+function renderPanel(overrides: Partial<TasksPanelProps> = {}) {
+  const props: TasksPanelProps = {
+    styleContext: {primary: '#fb7185', primaryLight: '#fff1f2', secondary: '#fda4af'},
+    categories: baseCategories,
+    allTasks: baseTasks,
+    filteredTaskItems: baseTasks,
+    taskFormTitle: '',
+    taskFormCategory: 1,
+    taskFormDate: '2026-06-05',
+    taskFilterCategory: 'all',
+    taskFilterStatus: 'all',
+    taskFilterDateScope: 'today',
+    setTaskFormTitle: vi.fn(),
+    setTaskFormCategory: vi.fn(),
+    setTaskFormDate: vi.fn(),
+    setTaskFilterCategory: vi.fn(),
+    setTaskFilterStatus: vi.fn(),
+    setTaskFilterDateScope: vi.fn(),
+    handleCreateTask: vi.fn(),
+    handleUpdateTaskStatus: vi.fn(),
+    handleStartSession: vi.fn(),
+    handleDeleteTask: vi.fn(),
+    ...overrides,
+  };
+
+  return render(<TasksPanel {...props} />);
+}
+
 describe('TasksPanel', () => {
   it('submits new task form through the provided handler', () => {
     const onCreateTask = vi.fn((event?: FormEvent) => event?.preventDefault());
@@ -144,5 +174,13 @@ describe('TasksPanel', () => {
     fireEvent.click(screen.getByRole('button', {name: '删除任务 写周报'}));
 
     expect(onDeleteTask).toHaveBeenCalledWith(baseTasks[0]);
+  });
+
+  it('shows unscheduled tasks as 未安排', () => {
+    renderPanel({
+      filteredTaskItems: [{...baseTasks[0], id: 99, title: '未安排任务', plannedDate: undefined}],
+    });
+
+    expect(screen.getByText('未安排')).toBeInTheDocument();
   });
 });

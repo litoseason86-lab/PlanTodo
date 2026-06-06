@@ -92,4 +92,27 @@ describe('sqlite row mappers', () => {
       }).weekStartDate,
     ).toBe('2026-06-01');
   });
+
+  it('maps nullable planned_date as an unscheduled task', () => {
+    expect(mapTaskRow({
+      id: 6,
+      user_id: 1,
+      category_id: 1,
+      title: '未安排',
+      planned_date: null,
+      planned_end_date: '2026-06-08',
+      start_at: '2026-06-06T09:00:00.000',
+      end_at: '2026-06-06T10:00:00.000',
+      all_day: 0,
+      status: 'TODO',
+      created_at: '2026-06-05T00:00:00.000Z',
+      updated_at: '2026-06-05T00:00:00.000Z',
+    })).toMatchObject({
+      plannedDate: undefined,
+      plannedEndDate: undefined,
+      startAt: undefined,
+      endAt: undefined,
+      allDay: true,
+    });
+  });
 });

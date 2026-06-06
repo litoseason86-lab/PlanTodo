@@ -83,4 +83,18 @@ describe('MonthCalendarView', () => {
 
     expect(scheduleDate).toHaveBeenCalledWith(1, '2026-06-08');
   });
+
+  it('ignores unscheduled tasks if malformed date groups include them', () => {
+    render(
+      <MonthCalendarView
+        anchorDate="2026-06-06"
+        tasksByDate={{'2026-06-06': [{...task, id: 99, title: '未安排', plannedDate: undefined}]}}
+        categories={categories}
+        onCreateDateTask={vi.fn().mockResolvedValue(undefined)}
+        onScheduleDate={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    expect(screen.queryByText('未安排')).not.toBeInTheDocument();
+  });
 });

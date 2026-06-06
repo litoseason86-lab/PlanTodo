@@ -58,7 +58,10 @@ export function MonthCalendarView({
         >
           <span className="text-xs font-bold">{day.isoDate.slice(8)}</span>
           <span className="mt-2 block space-y-1">
-            {(tasksByDate[day.isoDate] ?? []).slice(0, 4).map((task) => {
+            {(tasksByDate[day.isoDate] ?? [])
+              .filter((task): task is Task & {plannedDate: string} => Boolean(task.plannedDate))
+              .slice(0, 4)
+              .map((task) => {
               const segment = task.allDay ? segmentAllDayTask(task, visibleStart, visibleEnd) : undefined;
               const startsHere = !segment || segment.startsOn === day.isoDate;
               const endsHere = !segment || segment.endsOn === day.isoDate;

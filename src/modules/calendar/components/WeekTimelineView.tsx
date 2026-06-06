@@ -16,6 +16,7 @@ import {
 const HOURS = Array.from({length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1}, (_, index) => index + TIMELINE_START_HOUR);
 const MINUTES_PER_HOUR = 60;
 const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
+const TIMELINE_LANE_GAP_PX = 4;
 
 interface WeekTimelineViewProps {
   anchorDate: string;
@@ -85,13 +86,13 @@ function formatTimelineClock(minutes: number): string {
 }
 
 function taskSegmentLabel(task: Task, segment: TimedTaskDayLayoutSegment): string {
-  if (!task.startAt || !task.endAt) {
-    return task.title;
-  }
+  return `${taskSegmentTimeLabel(segment)} ${task.title}`;
+}
 
+function taskSegmentTimeLabel(segment: TimedTaskDayLayoutSegment): string {
   const start = formatTimelineClock(segment.topMinutes);
   const end = formatTimelineClock(segment.endMinutes);
-  return `${start}-${end} ${task.title}`;
+  return `${start}-${end}`;
 }
 
 function timelineColumnBlockStyle(segment: TimedTaskDayLayoutSegment) {
@@ -103,10 +104,18 @@ function timelineColumnBlockStyle(segment: TimedTaskDayLayoutSegment) {
 }
 
 function timelineLaneStyle(segment: TimedTaskDayLayoutSegment) {
-  const width = 100 / segment.laneCount;
+  if (segment.laneCount <= 1) {
+    return {
+      left: '0%',
+      width: '100%',
+    };
+  }
+
+  const totalGapPx = (segment.laneCount - 1) * TIMELINE_LANE_GAP_PX;
+  const width = `calc((100% - ${totalGapPx}px) / ${segment.laneCount})`;
   return {
-    left: `${segment.laneIndex * width}%`,
-    width: `${width}%`,
+    left: `calc((${width} + ${TIMELINE_LANE_GAP_PX}px) * ${segment.laneIndex})`,
+    width,
   };
 }
 
@@ -194,7 +203,7 @@ export function WeekTimelineView({
         {days.map((day) => (
           <div key={day.isoDate} className="min-h-20 border-l border-slate-100 p-2">
             <div className="mb-2 text-xs font-bold text-slate-500">{day.isoDate.slice(5)}</div>
-            {(tasksByDate[day.isoDate] ?? []).filter((task) => task.allDay).map((task) => (
+            {(tasksByDate[day.isoDate] ?? []).filter((task) => task.allDay && task.plannedDate).map((task) => (
               <div
                 key={task.id}
                 draggable
@@ -218,7 +227,9 @@ export function WeekTimelineView({
         </div>
         {days.map((day) => {
           const timedTasks = (tasksByDate[day.isoDate] ?? [])
-            .filter((task): task is Task & {startAt: string; endAt: string} => !task.allDay && Boolean(task.startAt && task.endAt));
+            .filter((task): task is Task & {plannedDate: string; startAt: string; endAt: string} => {
+              return !task.allDay && Boolean(task.plannedDate && task.startAt && task.endAt);
+            });
           const taskById = new Map(timedTasks.map((task) => [task.id, task]));
           const taskSegments = buildTimedTaskDayLayout({
             date: day.isoDate,
@@ -276,14 +287,16 @@ export function WeekTimelineView({
                         taskId: task.id,
                         durationMinutes: taskDurationMinutes(task),
                       })}
-                      className="pointer-events-auto absolute z-10 overflow-hidden rounded px-2 py-1 text-[11px] font-bold leading-tight text-white"
+                      className="group pointer-events-auto absolute z-10 min-w-0 overflow-hidden rounded-md px-1.5 py-1 text-[11px] font-semibold leading-tight text-white shadow-sm"
                       style={{
                         backgroundColor: categoryColor(categories, task.categoryId),
                         ...timelineColumnBlockStyle(segment),
                         ...timelineLaneStyle(segment),
                       }}
                     >
-                      <div className="truncate">{taskSegmentLabel(task, segment)}</div>
+                      <span className="sr-only">{taskSegmentLabel(task, segment)}</span>
+                      <div className="truncate">{task.title}</div>
+                      <div className="truncate text-[10px] font-medium text-white/80">{taskSegmentTimeLabel(segment)}</div>
                       {taskFocusMinutes > 0 && (
                         <div className="mt-1 truncate rounded bg-white/25 px-1 text-[10px]">
                           专注 {taskFocusMinutes}m
@@ -293,7 +306,7 @@ export function WeekTimelineView({
                         <button
                           type="button"
                           aria-label={`调整${task.title}时长`}
-                          className="mt-1 block h-2 w-full rounded bg-white/40"
+                          className="pointer-events-none absolute inset-x-1 bottom-1 block h-1.5 rounded bg-white/45 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 focus:pointer-events-auto focus:opacity-100"
                           onPointerDown={(event) => {
                             event.stopPropagation();
                             const durationMinutes = taskDurationMinutes(task);

@@ -38,7 +38,7 @@ export function CalendarListView({
         <section key={date} className="rounded-lg border border-slate-200 bg-white p-4">
           <h3 className="mb-3 text-xs font-extrabold text-slate-500">{date}</h3>
           <div className="space-y-2">
-            {(tasksByDate[date] ?? []).map((task) => (
+            {(tasksByDate[date] ?? []).filter((task) => task.plannedDate).map((task) => (
               <div key={`${date}-${task.id}`} className="flex items-center gap-2 rounded-md border border-slate-100 px-3 py-2">
                 <span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor: categoryColor(categories, task.categoryId)}} />
                 <span className="text-xs font-bold text-slate-700">{task.title}</span>

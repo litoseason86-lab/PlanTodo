@@ -1,0 +1,57 @@
+<h2>日历功能范围更新：加入显示设置与 FAQ</h2>
+<p class="subtitle">新增两篇文档后，日历功能从“视图”扩展到“视图 + 显示偏好 + 批量操作”。一期必须砍掉无基础依赖的能力。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">可直接复用 PlanTodo 现有能力</div>
+    <div class="mockup-body">
+      <div class="placeholder">分类颜色 → 日历任务块颜色</div>
+      <div class="placeholder">任务状态 → 显示/隐藏已完成</div>
+      <div class="placeholder">plannedDate → 月视图 / 列表视图 / 周全天栏</div>
+      <div class="placeholder">专注记录 → 日历中显示专注记录</div>
+      <div class="placeholder">分类筛选 → 显示范围</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">必须新增的数据与交互底座</div>
+    <div class="mockup-body">
+      <div class="placeholder">startAt / endAt / allDay / endDate</div>
+      <div class="placeholder">时间轴缩放与隐藏时段</div>
+      <div class="placeholder">拖拽到日历排期</div>
+      <div class="placeholder">拖拽边缘调整时长</div>
+      <div class="placeholder">日历显示偏好持久化</div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="b-core" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>推荐一期：周/月/列表 + 时间字段 + 基础显示设置</h3>
+      <p>覆盖滴答核心体验：看计划、拖排期、按分类过滤、隐藏已完成、用分类颜色显示、显示专注记录。复杂但可控。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b-plus" onclick="toggleSelect(this)">
+    <div class="letter">B+</div>
+    <div class="content">
+      <h3>增强一期：再加批量操作和推迟</h3>
+      <p>批量选择、批量完成/删除、批量拖动、推迟 1 小时。价值高，但拖拽与状态一致性测试会膨胀。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c-full" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>不建议一期：完整显示设置全搬</h3>
+      <p>农历、节假日、辅助时区、标签/优先级颜色、重复任务、习惯、倒数日、课表等依赖 PlanTodo 当前没有的领域模型。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>修正后的建议</h3>
+  <p>仍然建议 B，但把“基础显示设置”纳入一期：显示范围、显示已完成、分类颜色、专注记录。批量操作和推迟放二期。</p>
+</div>

@@ -1,6 +1,8 @@
 import type {Task} from '../../../shared/domain/entities';
 import type {TaskStatus} from '../../../shared/domain/status';
 
+export type ScheduledFilter = 'unscheduled' | 'scheduled' | 'all-day-without-time';
+
 export interface TaskFilters {
   userId: number;
   plannedDate?: string;
@@ -8,13 +10,15 @@ export interface TaskFilters {
   dateTo?: string;
   status?: TaskStatus;
   categoryId?: number;
+  scheduled?: ScheduledFilter;
+  query?: string;
 }
 
 export interface CreateTaskInput {
   userId: number;
   categoryId: number;
   title: string;
-  plannedDate: string;
+  plannedDate?: string;
   plannedEndDate?: string;
   startAt?: string;
   endAt?: string;
@@ -24,12 +28,14 @@ export interface CreateTaskInput {
 export interface UpdateTaskScheduleInput {
   taskId: number;
   userId: number;
-  plannedDate: string;
+  plannedDate?: string;
   plannedEndDate?: string;
   startAt?: string;
   endAt?: string;
   allDay: boolean;
 }
+
+export interface BatchTaskScheduleInput extends UpdateTaskScheduleInput {}
 
 export interface TaskRepository {
   listByFilters(filters: TaskFilters): Task[];
@@ -37,5 +43,6 @@ export interface TaskRepository {
   create(input: CreateTaskInput): Task;
   updateStatus(taskId: number, userId: number, status: TaskStatus): Task | undefined;
   updateSchedule(input: UpdateTaskScheduleInput): Task | undefined;
+  batchUpdateSchedules(inputs: BatchTaskScheduleInput[]): Task[];
   remove(taskId: number, userId: number): boolean;
 }

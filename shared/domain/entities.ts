@@ -22,7 +22,7 @@ export interface Task {
   userId: number;
   categoryId: number;
   title: string;
-  plannedDate: string;
+  plannedDate?: string;
   plannedEndDate?: string;
   startAt?: string;
   endAt?: string;

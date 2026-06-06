@@ -1,6 +1,6 @@
 import type {Task, TaskExecutionSession} from '../../../../shared/domain/entities';
 import {focusApi} from '../../focus/api/focusApi';
-import {tasksApi} from '../../tasks/api/tasksApi';
+import {tasksApi, type TaskSchedulePayload} from '../../tasks/api/tasksApi';
 
 export interface CalendarRange {
   dateFrom: string;
@@ -9,14 +9,6 @@ export interface CalendarRange {
 
 export interface CalendarTaskFilters extends CalendarRange {
   categoryId?: number;
-}
-
-export interface TaskSchedulePayload {
-  plannedDate: string;
-  plannedEndDate?: string;
-  startAt?: string;
-  endAt?: string;
-  allDay: boolean;
 }
 
 export const calendarApi = {

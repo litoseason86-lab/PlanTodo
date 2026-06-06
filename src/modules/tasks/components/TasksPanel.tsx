@@ -193,7 +193,7 @@ export function TasksPanel({
                         </span>
                         <span className="text-[9px] text-slate-400 font-mono font-semibold flex items-center gap-1">
                           <Calendar className="w-3 h-3 text-slate-300" />
-                          {task.plannedDate}
+                          {task.plannedDate ?? '未安排'}
                         </span>
                       </div>
                     </div>

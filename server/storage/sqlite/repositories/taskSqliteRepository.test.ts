@@ -91,4 +91,103 @@ describe('TaskSqliteRepository', () => {
       endAt: '2026-06-06T10:00:00.000',
     });
   });
+
+  it('allows planned_date to be null after migrations', () => {
+    const info = db.prepare('pragma table_info(tasks)').all() as Array<{name: string; notnull: number}>;
+    expect(info.find((column) => column.name === 'planned_date')?.notnull).toBe(0);
+  });
+
+  it('clears residual schedule columns when creating or updating unscheduled sqlite tasks', () => {
+    const category = categories.create({userId: 1, name: '工作', color: '#ef4444', sortOrder: 1});
+    const task = tasks.create({
+      userId: 1,
+      categoryId: category.id,
+      title: '未安排',
+      plannedDate: undefined,
+      plannedEndDate: '2026-06-08',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      allDay: false,
+    });
+
+    expect(db.prepare('select planned_date, planned_end_date, start_at, end_at, all_day from tasks where id = ?').get(task.id)).toEqual({
+      planned_date: null,
+      planned_end_date: null,
+      start_at: null,
+      end_at: null,
+      all_day: 1,
+    });
+
+    tasks.updateSchedule({
+      taskId: task.id,
+      userId: 1,
+      plannedDate: undefined,
+      plannedEndDate: '2026-06-09',
+      startAt: '2026-06-09T09:00:00.000',
+      endAt: '2026-06-09T10:00:00.000',
+      allDay: false,
+    });
+
+    expect(db.prepare('select planned_date, planned_end_date, start_at, end_at, all_day from tasks where id = ?').get(task.id)).toEqual({
+      planned_date: null,
+      planned_end_date: null,
+      start_at: null,
+      end_at: null,
+      all_day: 1,
+    });
+  });
+
+  it('creates, filters, and unschedules sqlite tasks', () => {
+    const category = categories.create({userId: 1, name: '工作', color: '#ef4444', sortOrder: 1});
+    const unscheduled = tasks.create({userId: 1, categoryId: category.id, title: '未安排', plannedDate: undefined, allDay: true});
+    const scheduled = tasks.create({userId: 1, categoryId: category.id, title: '已安排', plannedDate: '2026-06-06', allDay: true});
+
+    expect(unscheduled.plannedDate).toBeUndefined();
+    expect(tasks.listByFilters({userId: 1}).map((task) => task.title)).toEqual(['未安排', '已安排']);
+    expect(tasks.listByFilters({userId: 1, scheduled: 'unscheduled'}).map((task) => task.title)).toEqual(['未安排']);
+    expect(tasks.listByFilters({userId: 1, plannedDate: '2026-06-06'}).map((task) => task.title)).toEqual(['已安排']);
+
+    const updated = tasks.updateSchedule({taskId: scheduled.id, userId: 1, plannedDate: undefined, allDay: true});
+    expect(updated?.plannedDate).toBeUndefined();
+  });
+
+  it('filters sqlite all-day-without-time tasks and escapes query wildcards', () => {
+    const category = categories.create({userId: 1, name: '工作', color: '#ef4444', sortOrder: 1});
+    tasks.create({userId: 1, categoryId: category.id, title: '周报_真实', plannedDate: '2026-06-06', allDay: true});
+    tasks.create({userId: 1, categoryId: category.id, title: '周报X真实', plannedDate: '2026-06-06', allDay: true});
+    tasks.create({userId: 1, categoryId: category.id, title: '周报跨天', plannedDate: '2026-06-06', plannedEndDate: '2026-06-07', allDay: true});
+
+    expect(tasks.listByFilters({
+      userId: 1,
+      scheduled: 'all-day-without-time',
+      dateFrom: '2026-06-01',
+      dateTo: '2026-06-07',
+      query: '周报_',
+    }).map((task) => task.title)).toEqual(['周报_真实']);
+  });
+
+  it('batch updates sqlite schedules atomically', () => {
+    const category = categories.create({userId: 1, name: '工作', color: '#ef4444', sortOrder: 1});
+    const first = tasks.create({userId: 1, categoryId: category.id, title: 'A', plannedDate: undefined, allDay: true});
+    const second = tasks.create({userId: 1, categoryId: category.id, title: 'B', plannedDate: undefined, allDay: true});
+
+    const updated = tasks.batchUpdateSchedules([
+      {taskId: first.id, userId: 1, plannedDate: '2026-06-08', allDay: true},
+      {taskId: second.id, userId: 1, plannedDate: '2026-06-08', allDay: true},
+    ]);
+
+    expect(updated.map((task) => task.plannedDate)).toEqual(['2026-06-08', '2026-06-08']);
+  });
+
+  it('rolls back sqlite batch schedule updates when a task is missing', () => {
+    const category = categories.create({userId: 1, name: '工作', color: '#ef4444', sortOrder: 1});
+    const first = tasks.create({userId: 1, categoryId: category.id, title: 'A', plannedDate: undefined, allDay: true});
+
+    expect(() => tasks.batchUpdateSchedules([
+      {taskId: first.id, userId: 1, plannedDate: '2026-06-08', allDay: true},
+      {taskId: 999, userId: 1, plannedDate: '2026-06-08', allDay: true},
+    ])).toThrow('Task not found');
+
+    expect(tasks.getById(first.id, 1)?.plannedDate).toBeUndefined();
+  });
 });

@@ -65,4 +65,12 @@ describe('calendarLayout', () => {
       continuesAfter: true,
     });
   });
+
+  it('does not group unscheduled tasks into calendar dates', () => {
+    const grouped = groupTasksByDate([
+      {...baseTask, id: 99, title: '未安排', plannedDate: undefined},
+    ], '2026-06-01', '2026-06-07');
+
+    expect(Object.values(grouped).flat()).toEqual([]);
+  });
 });
