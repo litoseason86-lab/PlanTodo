@@ -297,7 +297,6 @@ src/modules/calendar/
   components/MonthCalendarView.tsx
   components/WeekTimelineView.tsx
   components/CalendarListView.tsx
-  components/UnscheduledTaskLane.tsx
   controllers/useCalendarController.ts
   controllers/calendarLayout.ts
   controllers/calendarSettings.ts
