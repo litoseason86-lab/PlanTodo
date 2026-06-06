@@ -10,6 +10,7 @@ describe('TasksService', () => {
         getById: vi.fn(),
         create: vi.fn(),
         updateStatus: vi.fn(),
+        updateSchedule: vi.fn(),
         remove: vi.fn(),
       },
       {
@@ -38,6 +39,7 @@ describe('TasksService', () => {
         getById: vi.fn(),
         create: vi.fn(),
         updateStatus: vi.fn(),
+        updateSchedule: vi.fn(),
         remove: vi.fn(),
       },
       {
@@ -69,6 +71,7 @@ describe('TasksService', () => {
         getById: vi.fn(),
         create: vi.fn(),
         updateStatus: vi.fn(),
+        updateSchedule: vi.fn(),
         remove,
       },
       {
@@ -92,6 +95,7 @@ describe('TasksService', () => {
         getById: vi.fn(),
         create: vi.fn(),
         updateStatus: vi.fn(),
+        updateSchedule: vi.fn(),
         remove: vi.fn(() => false),
       },
       {
@@ -104,5 +108,80 @@ describe('TasksService', () => {
     );
 
     expect(() => service.delete(999, 1)).toThrow('Task not found');
+  });
+
+  it('rejects timed schedules without start and end', () => {
+    const task = {id: 1, userId: 1, categoryId: 1, title: '写方案', plannedDate: '2026-06-06', allDay: true, status: 'TODO', createdAt: '', updatedAt: ''} as const;
+    const service = new TasksService(
+      {
+        listByFilters: () => [],
+        getById: () => task,
+        create: () => task,
+        updateStatus: () => task,
+        updateSchedule: () => task,
+        remove: () => false,
+      },
+      {getById: () => ({id: 1, userId: 1, name: '工作', color: '#000', sortOrder: 1, createdAt: '', updatedAt: ''})},
+      {getRunningByUser: () => undefined, stop: () => undefined},
+    );
+
+    expect(() => service.updateSchedule({
+      taskId: 1,
+      userId: 1,
+      plannedDate: '2026-06-06',
+      allDay: false,
+    })).toThrow('Timed task requires startAt and endAt');
+  });
+
+  it('rejects cross-day timed schedules', () => {
+    const task = {id: 1, userId: 1, categoryId: 1, title: '写方案', plannedDate: '2026-06-06', allDay: true, status: 'TODO', createdAt: '', updatedAt: ''} as const;
+    const service = new TasksService(
+      {
+        listByFilters: () => [],
+        getById: () => task,
+        create: () => task,
+        updateStatus: () => task,
+        updateSchedule: () => task,
+        remove: () => false,
+      },
+      {getById: () => ({id: 1, userId: 1, name: '工作', color: '#000', sortOrder: 1, createdAt: '', updatedAt: ''})},
+      {getRunningByUser: () => undefined, stop: () => undefined},
+    );
+
+    expect(() => service.updateSchedule({
+      taskId: 1,
+      userId: 1,
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T23:30:00.000',
+      endAt: '2026-06-07T00:30:00.000',
+      allDay: false,
+    })).toThrow('Cross-day timed tasks are not supported yet');
+  });
+
+  it('rejects invalid timed task creation through the service', () => {
+    const service = new TasksService(
+      {
+        listByFilters: () => [],
+        getById: () => undefined,
+        create: () => {
+          throw new Error('not used');
+        },
+        updateStatus: () => undefined,
+        updateSchedule: () => undefined,
+        remove: () => false,
+      },
+      {getById: () => ({id: 1, userId: 1, name: '工作', color: '#000', sortOrder: 1, createdAt: '', updatedAt: ''})},
+      {getRunningByUser: () => undefined, stop: () => undefined},
+    );
+
+    expect(() => service.create({
+      userId: 1,
+      categoryId: 1,
+      title: '非法时间段',
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T10:00:00.000',
+      endAt: '2026-06-06T09:00:00.000',
+      allDay: false,
+    })).toThrow('endAt must be after startAt');
   });
 });

@@ -2,6 +2,7 @@ import type {
   CreateTaskInput,
   TaskFilters,
   TaskRepository,
+  UpdateTaskScheduleInput,
 } from '../../../modules/tasks/repository';
 import type {Task} from '../../../../shared/domain/entities';
 import type {TaskStatus} from '../../../../shared/domain/status';
@@ -59,6 +60,10 @@ export class TaskJsonRepository implements TaskRepository {
       task.updatedAt = new Date().toISOString();
       return task;
     });
+  }
+
+  updateSchedule(_input: UpdateTaskScheduleInput): Task | undefined {
+    return undefined;
   }
 
   remove(taskId: number, userId: number): boolean {
