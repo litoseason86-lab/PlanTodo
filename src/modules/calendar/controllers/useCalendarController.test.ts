@@ -62,6 +62,89 @@ describe('useCalendarController', () => {
     });
   });
 
+  it('schedules a task at a specific time with a default 60 minute duration', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.updateTaskSchedule).mockResolvedValue({id: 1} as never);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.scheduleTaskAtTime({taskId: 1, date: '2026-06-06', hour: 9, minute: 0});
+    });
+
+    expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, {
+      plannedDate: '2026-06-06',
+      plannedEndDate: undefined,
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      allDay: false,
+    });
+  });
+
+  it('moves a timed task while preserving duration', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.updateTaskSchedule).mockResolvedValue({id: 1} as never);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.moveTimedTask({
+        taskId: 1,
+        date: '2026-06-06',
+        hour: 14,
+        minute: 15,
+        durationMinutes: 45,
+      });
+    });
+
+    expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, {
+      plannedDate: '2026-06-06',
+      plannedEndDate: undefined,
+      startAt: '2026-06-06T14:15:00.000',
+      endAt: '2026-06-06T15:00:00.000',
+      allDay: false,
+    });
+  });
+
+  it('resizes a timed task duration', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.updateTaskSchedule).mockResolvedValue({id: 1} as never);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [],
+      initialDate: '2026-06-06',
+      showToast: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.resizeTimedTask({
+        taskId: 1,
+        plannedDate: '2026-06-06',
+        startAt: '2026-06-06T09:00:00.000',
+        durationMinutes: 90,
+      });
+    });
+
+    expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, {
+      plannedDate: '2026-06-06',
+      plannedEndDate: undefined,
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:30:00.000',
+      allDay: false,
+    });
+  });
+
   it('creates an all-day task from a date cell', async () => {
     vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
     vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
@@ -128,6 +211,44 @@ describe('useCalendarController', () => {
     });
 
     expect(showToast).toHaveBeenCalledWith('排期失败', 'error');
+  });
+
+  it('shows an error toast when time schedule calculation fails', async () => {
+    const showToast = vi.fn();
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [],
+      initialDate: '2026-06-06',
+      showToast,
+    }));
+
+    await act(async () => {
+      await result.current.scheduleTaskAtTime({taskId: 1, date: '2026-06-06', hour: 23, minute: 30});
+    });
+
+    expect(calendarApi.updateTaskSchedule).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith('Local datetime addition crossed day boundary', 'error');
+  });
+
+  it('shows an error toast when schedule update fails', async () => {
+    const showToast = vi.fn();
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.updateTaskSchedule).mockRejectedValue(new Error('endAt must be after startAt'));
+
+    const {result} = renderHook(() => useCalendarController({
+      categories: [],
+      initialDate: '2026-06-06',
+      showToast,
+    }));
+
+    await act(async () => {
+      await result.current.scheduleTaskAtTime({taskId: 1, date: '2026-06-06', hour: 9, minute: 0});
+    });
+
+    expect(showToast).toHaveBeenCalledWith('endAt must be after startAt', 'error');
   });
 
   it('shows an error toast when creating a date task fails', async () => {
