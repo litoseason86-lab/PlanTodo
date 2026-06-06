@@ -1,6 +1,13 @@
+import {useEffect, useState} from 'react';
+
 import type {Category, Task} from '../../../../shared/domain/entities';
 import {buildWeekDays} from '../controllers/calendarLayout';
-import {TIMELINE_END_HOUR, TIMELINE_START_HOUR, buildTimedTaskBlock} from '../controllers/weekTimelineLayout';
+import {
+  TIMELINE_END_HOUR,
+  TIMELINE_SLOT_MINUTES,
+  TIMELINE_START_HOUR,
+  buildTimedTaskBlock,
+} from '../controllers/weekTimelineLayout';
 
 const HOURS = Array.from({length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1}, (_, index) => index + TIMELINE_START_HOUR);
 
@@ -10,6 +17,15 @@ interface WeekTimelineViewProps {
   categories: Category[];
   onScheduleTime: (input: {taskId: number; date: string; hour: number; minute: number}) => Promise<void>;
   onMoveTimedTask: (input: {taskId: number; date: string; hour: number; minute: number; durationMinutes: number}) => Promise<void>;
+  onResizeTimedTask: (input: {taskId: number; plannedDate: string; startAt: string; durationMinutes: number}) => Promise<void>;
+}
+
+interface ResizeState {
+  taskId: number;
+  plannedDate: string;
+  startAt: string;
+  initialDurationMinutes: number;
+  startY: number;
 }
 
 function categoryColor(categories: Category[], categoryId: number): string {
@@ -49,14 +65,52 @@ function taskDurationMinutes(task: Task): number | undefined {
   return buildTimedTaskBlock({startAt: task.startAt, endAt: task.endAt}).durationMinutes;
 }
 
+function getResizeDurationMinutes(input: {
+  initialDurationMinutes: number;
+  startY: number;
+  currentY: number;
+}): number {
+  const deltaMinutes = Math.round((input.currentY - input.startY) / TIMELINE_SLOT_MINUTES) * TIMELINE_SLOT_MINUTES;
+  return Math.max(TIMELINE_SLOT_MINUTES, input.initialDurationMinutes + deltaMinutes);
+}
+
 export function WeekTimelineView({
   anchorDate,
   tasksByDate,
   categories,
   onScheduleTime,
   onMoveTimedTask,
+  onResizeTimedTask,
 }: WeekTimelineViewProps) {
   const days = buildWeekDays(anchorDate);
+  const [resizeState, setResizeState] = useState<ResizeState | null>(null);
+
+  useEffect(() => {
+    if (!resizeState) {
+      return undefined;
+    }
+
+    const onPointerUp = (event: PointerEvent) => {
+      const durationMinutes = getResizeDurationMinutes({
+        initialDurationMinutes: resizeState.initialDurationMinutes,
+        startY: resizeState.startY,
+        currentY: event.clientY,
+      });
+      void onResizeTimedTask({
+        taskId: resizeState.taskId,
+        plannedDate: resizeState.plannedDate,
+        startAt: resizeState.startAt,
+        durationMinutes,
+      });
+      setResizeState(null);
+    };
+
+    window.addEventListener('pointerup', onPointerUp, {once: true});
+
+    return () => {
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [onResizeTimedTask, resizeState]);
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -121,6 +175,25 @@ export function WeekTimelineView({
                     style={{backgroundColor: categoryColor(categories, task.categoryId)}}
                   >
                     {task.startAt?.slice(11, 16)} {task.title}
+                    <button
+                      type="button"
+                      aria-label={`调整${task.title}时长`}
+                      className="mt-1 block h-2 w-full rounded bg-white/40"
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                        const durationMinutes = taskDurationMinutes(task);
+                        if (!task.startAt || !durationMinutes) {
+                          return;
+                        }
+                        setResizeState({
+                          taskId: task.id,
+                          plannedDate: task.plannedDate,
+                          startAt: task.startAt,
+                          initialDurationMinutes: durationMinutes,
+                          startY: event.clientY,
+                        });
+                      }}
+                    />
                   </div>
                 ))}
             </div>

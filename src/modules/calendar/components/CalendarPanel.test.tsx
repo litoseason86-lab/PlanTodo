@@ -1,4 +1,4 @@
-import {fireEvent, render, screen} from '@testing-library/react';
+import {act, fireEvent, render, screen} from '@testing-library/react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {calendarApi} from '../api/calendarApi';
@@ -205,6 +205,52 @@ describe('CalendarPanel', () => {
       plannedDate: '2026-06-07',
       startAt: '2026-06-07T14:00:00.000',
       endAt: '2026-06-07T15:30:00.000',
+      allDay: false,
+    }));
+  });
+
+  it('drags a timed task resize handle', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        categoryId: 1,
+        title: '时间段任务',
+        plannedDate: '2026-06-06',
+        allDay: false,
+        startAt: '2026-06-06T09:00:00.000',
+        endAt: '2026-06-06T10:00:00.000',
+        status: 'TODO',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.updateTaskSchedule).mockResolvedValue({id: 1} as never);
+
+    render(
+      <CalendarPanel
+        categories={[{id: 1, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''}]}
+        styleContext={{primary: '#fb7185', primaryLight: '#ffe4e6', secondary: '#fda4af'}}
+        showToast={vi.fn()}
+        initialDate="2026-06-06"
+      />,
+    );
+
+    await screen.findByText('09:00 时间段任务');
+    const handle = screen.getByLabelText('调整时间段任务时长');
+    act(() => {
+      handle.dispatchEvent(new MouseEvent('pointerdown', {bubbles: true, clientY: 0}));
+    });
+    act(() => {
+      window.dispatchEvent(new MouseEvent('pointermove', {bubbles: true, clientY: 30}));
+      window.dispatchEvent(new MouseEvent('pointerup', {bubbles: true, clientY: 30}));
+    });
+
+    expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(1, expect.objectContaining({
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:30:00.000',
       allDay: false,
     }));
   });

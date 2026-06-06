@@ -52,6 +52,7 @@ export function CalendarPanel({categories, styleContext, showToast, initialDate}
             categories={categories}
             onScheduleTime={controller.scheduleTaskAtTime}
             onMoveTimedTask={controller.moveTimedTask}
+            onResizeTimedTask={controller.resizeTimedTask}
           />
         )}
         {controller.view === 'list' && (
