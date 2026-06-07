@@ -116,8 +116,8 @@ export function CalendarQuickCreatePopover({draft, categories, onCancel, onSubmi
       role="dialog"
       aria-label="快速创建任务"
       tabIndex={-1}
-      className="absolute z-50 w-72 rounded-lg border border-slate-200 bg-white p-4 text-xs shadow-lg"
-      style={{left: draft.anchor.x, top: draft.anchor.y}}
+      className="z-50 w-72 rounded-lg border border-slate-200 bg-white p-4 text-xs shadow-lg"
+      style={{position: 'fixed', left: draft.anchor.x, top: draft.anchor.y}}
     >
       <div className="mb-3 font-bold text-slate-700">{formatDraftRange(draft)}</div>
       <div className="grid gap-3">

@@ -739,6 +739,7 @@ describe('CalendarPanel', () => {
       endAt: '2026-06-06T10:00:00.000',
       allDay: false,
     })));
+    await waitFor(() => expect(screen.queryByRole('dialog', {name: '快速创建任务'})).not.toBeInTheDocument());
     await waitFor(() => expect(calendarApi.getUnscheduledTasks).toHaveBeenCalledTimes(2));
   });
 

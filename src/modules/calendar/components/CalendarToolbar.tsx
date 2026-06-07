@@ -69,11 +69,12 @@ export function CalendarToolbar({
           ))}
         </div>
         {view === 'week' && showWeekDensityControls && (
-          <div className="flex rounded-lg border border-slate-200 bg-white p-1">
+          <div role="group" aria-label="周视图密度" className="flex rounded-lg border border-slate-200 bg-white p-1">
             {densityOptions.map((option) => (
               <button
                 key={option.value}
                 type="button"
+                aria-pressed={weekTimelineDensity === option.value}
                 onClick={() => onWeekTimelineDensityChange?.(option.value)}
                 className={`rounded-md px-3 py-1.5 text-xs font-bold ${weekTimelineDensity === option.value ? 'bg-slate-900 text-white' : 'text-slate-500'}`}
               >

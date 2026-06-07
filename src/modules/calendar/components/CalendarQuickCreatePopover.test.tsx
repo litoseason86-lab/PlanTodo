@@ -50,6 +50,23 @@ describe('CalendarQuickCreatePopover', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({title: '写方案', categoryId: 2}));
   });
 
+  it('positions the popover using fixed viewport coordinates', () => {
+    render(
+      <CalendarQuickCreatePopover
+        draft={timedDraft}
+        categories={categories}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('dialog', {name: '快速创建任务'})).toHaveStyle({
+      position: 'fixed',
+      left: '30px',
+      top: '40px',
+    });
+  });
+
   it('renders all-day date range', () => {
     render(
       <CalendarQuickCreatePopover
