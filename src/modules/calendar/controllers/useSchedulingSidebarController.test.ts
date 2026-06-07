@@ -11,8 +11,16 @@ vi.mock('../api/calendarApi', () => ({
   },
 }));
 
+const categories = [{id: 1, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''}];
+const tags = [
+  {id: 1, userId: 1, name: '客户A', createdAt: '', updatedAt: ''},
+  {id: 2, userId: 1, name: '项目B', createdAt: '', updatedAt: ''},
+];
+
 function baseArgs(overrides: Partial<Parameters<typeof useSchedulingSidebarController>[0]> = {}) {
   return {
+    categories,
+    tags,
     range: {dateFrom: '2026-06-01', dateTo: '2026-06-07'},
     externalRefreshKey: 0,
     showToast: vi.fn(),
@@ -42,6 +50,43 @@ describe('useSchedulingSidebarController', () => {
     act(() => result.current.setCategoryId('2'));
     await waitFor(() => expect(calendarApi.getUnscheduledTasks).toHaveBeenLastCalledWith({query: '方案', categoryId: 2}));
     expect(calendarApi.getAllDayWithoutTimeTasks).toHaveBeenLastCalledWith({dateFrom: '2026-06-01', dateTo: '2026-06-07', query: '方案', categoryId: 2});
+  });
+
+  it('passes tag and priority filters to both task pool requests and clears selection', async () => {
+    vi.mocked(calendarApi.getUnscheduledTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getAllDayWithoutTimeTasks).mockResolvedValue([]);
+    const {result} = renderHook(() => useSchedulingSidebarController(baseArgs()));
+
+    act(() => result.current.toggleTask(1));
+    await waitFor(() => expect(result.current.selectedTaskIds.size).toBe(1));
+
+    await act(async () => {
+      result.current.setTagIds([1, 2]);
+      result.current.setPriority('none');
+    });
+
+    await waitFor(() => expect(calendarApi.getUnscheduledTasks).toHaveBeenLastCalledWith(expect.objectContaining({tagIds: [1, 2], priority: 'none'})));
+    expect(calendarApi.getAllDayWithoutTimeTasks).toHaveBeenLastCalledWith(expect.objectContaining({tagIds: [1, 2], priority: 'none'}));
+    expect(result.current.selectedTaskIds.size).toBe(0);
+  });
+
+  it('does not refetch or clear selection when tag filters are unchanged after normalization', async () => {
+    vi.mocked(calendarApi.getUnscheduledTasks).mockResolvedValue([]);
+    vi.mocked(calendarApi.getAllDayWithoutTimeTasks).mockResolvedValue([]);
+    const {result} = renderHook(() => useSchedulingSidebarController(baseArgs()));
+
+    act(() => result.current.setTagIds([1, 2]));
+    await waitFor(() => expect(calendarApi.getUnscheduledTasks).toHaveBeenLastCalledWith(expect.objectContaining({tagIds: [1, 2]})));
+    const unscheduledCalls = vi.mocked(calendarApi.getUnscheduledTasks).mock.calls.length;
+    const allDayCalls = vi.mocked(calendarApi.getAllDayWithoutTimeTasks).mock.calls.length;
+    act(() => result.current.toggleTask(1));
+    expect(result.current.selectedTaskIds.size).toBe(1);
+
+    act(() => result.current.setTagIds([2, 1, 1]));
+
+    expect(result.current.selectedTaskIds.size).toBe(1);
+    expect(calendarApi.getUnscheduledTasks).toHaveBeenCalledTimes(unscheduledCalls);
+    expect(calendarApi.getAllDayWithoutTimeTasks).toHaveBeenCalledTimes(allDayCalls);
   });
 
   it('ignores stale task pool responses', async () => {

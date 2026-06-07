@@ -250,6 +250,7 @@ export default function AppShell() {
           <CalendarPanel
             styleContext={{primary: styleContext.primary, primaryLight: styleContext.primaryLight, secondary: styleContext.secondary}}
             categories={categories}
+            tags={tags}
             showToast={showToast}
             onMutationSuccess={async () => {
               await refreshAllTasks();

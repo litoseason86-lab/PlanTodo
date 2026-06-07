@@ -15,6 +15,8 @@ export interface CalendarTaskFilters extends CalendarRange {
 export interface CalendarTaskPoolFilters {
   categoryId?: number;
   query?: string;
+  priority?: TaskPriority | 'none';
+  tagIds?: number[];
 }
 
 export interface CalendarAllDayWithoutTimeFilters extends CalendarRange, CalendarTaskPoolFilters {}

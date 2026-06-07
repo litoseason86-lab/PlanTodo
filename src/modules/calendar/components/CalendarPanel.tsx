@@ -1,6 +1,6 @@
 import {type CSSProperties, useState} from 'react';
 
-import type {Category} from '../../../../shared/domain/entities';
+import type {Category, Tag} from '../../../../shared/domain/entities';
 import {useCalendarController} from '../controllers/useCalendarController';
 import {useSchedulingSidebarController} from '../controllers/useSchedulingSidebarController';
 import {CalendarQuickCreatePopover} from './CalendarQuickCreatePopover';
@@ -11,13 +11,14 @@ import {SchedulingSidebar} from './SchedulingSidebar';
 
 interface CalendarPanelProps {
   categories: Category[];
+  tags?: Tag[];
   styleContext: {primary: string; primaryLight: string; secondary: string};
   showToast: (message: string, type?: 'success' | 'error') => void;
   initialDate?: string;
   onMutationSuccess?: () => Promise<void> | void;
 }
 
-export function CalendarPanel({categories, styleContext, showToast, initialDate, onMutationSuccess}: CalendarPanelProps) {
+export function CalendarPanel({categories, tags = [], styleContext, showToast, initialDate, onMutationSuccess}: CalendarPanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
   const [schedulingSidebarOpen, setSchedulingSidebarOpen] = useState(true);
@@ -34,6 +35,8 @@ export function CalendarPanel({categories, styleContext, showToast, initialDate,
     },
   });
   const sidebarController = useSchedulingSidebarController({
+    categories,
+    tags,
     range: controller.range,
     externalRefreshKey: sidebarRefreshKey,
     showToast,
@@ -79,6 +82,7 @@ export function CalendarPanel({categories, styleContext, showToast, initialDate,
             <SchedulingSidebar
               controller={sidebarController}
               categories={categories}
+              tags={tags}
             />
           )}
         </div>
