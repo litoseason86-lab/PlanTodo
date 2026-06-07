@@ -17,6 +17,21 @@ export interface Category {
   updatedAt: string;
 }
 
+export interface Tag {
+  id: number;
+  userId: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskTag {
+  taskId: number;
+  tagId: number;
+  userId: number;
+  createdAt: string;
+}
+
 export interface Task {
   id: number;
   userId: number;

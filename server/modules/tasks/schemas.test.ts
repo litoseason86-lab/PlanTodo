@@ -4,6 +4,7 @@ import {
   parseBatchScheduleBody,
   parseBatchUnscheduleBody,
   parseTaskBody,
+  parseTaskDetailsBody,
   parseTaskId,
   parseTaskQuery,
   parseTaskScheduleBody,
@@ -105,7 +106,55 @@ describe('task schemas', () => {
       startAt: undefined,
       endAt: undefined,
       allDay: true,
+      priority: null,
+      tagIds: [],
     });
+  });
+
+  it('parses priority and tagIds on task creation', () => {
+    expect(parseTaskBody({
+      title: '写方案',
+      categoryId: 1,
+      priority: 'P1',
+      tagIds: [2, '3'],
+    })).toMatchObject({
+      title: '写方案',
+      categoryId: 1,
+      priority: 'P1',
+      tagIds: [2, 3],
+    });
+  });
+
+  it('rejects duplicate tagIds on task creation', () => {
+    expect(() => parseTaskBody({
+      title: '写方案',
+      categoryId: 1,
+      priority: 'P1',
+      tagIds: [2, 2],
+    })).toThrow('tagIds must be unique');
+  });
+
+  it('parses full task details replacement', () => {
+    expect(parseTaskDetailsBody({
+      title: '  写方案  ',
+      categoryId: 1,
+      tagIds: [],
+      priority: null,
+    })).toEqual({
+      title: '写方案',
+      categoryId: 1,
+      tagIds: [],
+      priority: null,
+    });
+  });
+
+  it('rejects duplicate tagIds in task details', () => {
+    expect(() => parseTaskDetailsBody({
+      title: '写方案',
+      categoryId: 1,
+      tagIds: [2, 2],
+      priority: 'P2',
+    })).toThrow('tagIds must be unique');
   });
 
   it('parses null plannedDate without schedule details as unscheduled', () => {
@@ -251,6 +300,21 @@ describe('task schemas', () => {
       scheduled: 'unscheduled',
       date: '2026-06-06',
     })).toThrow('scheduled=unscheduled cannot be combined with date filters');
+  });
+
+  it('strictly rejects invalid task query filters', () => {
+    expect(parseTaskQuery({priority: 'none'})).toMatchObject({priority: 'none'});
+    expect(parseTaskQuery({tagIds: '1,2'})).toMatchObject({tagIds: [1, 2]});
+    expect(() => parseTaskQuery({priority: 'P5'})).toThrow('priority must be one of');
+    expect(() => parseTaskQuery({tagIds: '1, 2'})).toThrow('tagIds must be a comma-separated list');
+    expect(() => parseTaskQuery({tagIds: ['1', '2']})).toThrow('tagIds must be provided once');
+    expect(() => parseTaskQuery({tagIds: '1,1'})).toThrow('tagIds must be unique');
+    expect(() => parseTaskQuery({tagIds: '9007199254740993'})).toThrow(
+      'tagIds must contain positive integers',
+    );
+    expect(() => parseTaskQuery({priority: ['P1', 'P2']})).toThrow('priority must be provided once');
+    expect(() => parseTaskQuery({categoryId: '1abc'})).toThrow('Invalid categoryId');
+    expect(() => parseTaskQuery({status: 'BROKEN'})).toThrow('Status must be one of');
   });
 
   it('parses batch schedule and unschedule bodies', () => {

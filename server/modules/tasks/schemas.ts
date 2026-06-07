@@ -1,9 +1,15 @@
 import {AppError} from '../../shared/errors/appError';
-import {TASK_STATUSES, type TaskStatus} from '../../../shared/domain/status';
+import {
+  TASK_PRIORITIES,
+  TASK_STATUSES,
+  type TaskPriority,
+  type TaskStatus,
+} from '../../../shared/domain/status';
 import {parseOptionalIsoDate} from '../../shared/http/dateParams';
 import {normalizeTaskSchedule, type NormalizedTaskSchedule} from './scheduleRules';
 
 type ScheduledFilter = 'unscheduled' | 'scheduled' | 'all-day-without-time';
+type PriorityFilter = TaskPriority | 'none';
 
 export interface TaskBody {
   title: string;
@@ -13,6 +19,8 @@ export interface TaskBody {
   startAt?: string;
   endAt?: string;
   allDay?: boolean;
+  priority?: TaskPriority | null;
+  tagIds: number[];
 }
 
 export interface TaskStatusBody {
@@ -20,6 +28,13 @@ export interface TaskStatusBody {
 }
 
 export interface TaskScheduleBody extends NormalizedTaskSchedule {}
+
+export interface TaskDetailsBody {
+  title: string;
+  categoryId: number;
+  tagIds: number[];
+  priority: TaskPriority | null;
+}
 
 export interface TaskQueryParams {
   date?: string;
@@ -29,6 +44,8 @@ export interface TaskQueryParams {
   categoryId?: number;
   scheduled?: ScheduledFilter;
   query?: string;
+  priority?: PriorityFilter;
+  tagIds?: number[];
 }
 
 export interface BatchScheduleBody {
@@ -51,21 +68,166 @@ export function parseTaskId(value: string): number {
   return id;
 }
 
-export function parseTaskBody(body: unknown): TaskBody {
-  const payload = (body ?? {}) as Record<string, unknown>;
-  const categoryId = Number.parseInt(String(payload.categoryId), 10);
-  if (Number.isNaN(categoryId)) {
-    throw new AppError(400, 'Valid categoryId is required');
+function parseTaskTitle(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new AppError(400, 'title is required');
+  }
+  const title = value.trim();
+  if (!title) {
+    throw new AppError(400, 'Task title is required');
+  }
+  return title;
+}
+
+function parseCategoryIdValue(value: unknown): number {
+  const raw = typeof value === 'number'
+    ? String(value)
+    : typeof value === 'string'
+      ? value
+      : '';
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new AppError(400, 'Invalid categoryId');
+  }
+  const categoryId = Number.parseInt(raw, 10);
+  if (!Number.isSafeInteger(categoryId)) {
+    throw new AppError(400, 'Invalid categoryId');
+  }
+  return categoryId;
+}
+
+function parsePriority(value: unknown): TaskPriority | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof value !== 'string' || !TASK_PRIORITIES.includes(value as TaskPriority)) {
+    throw new AppError(400, `priority must be one of: ${TASK_PRIORITIES.join(', ')}, null`);
+  }
+  return value as TaskPriority;
+}
+
+function parsePositiveInteger(value: unknown, field: string): number {
+  const id = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && /^[1-9]\d*$/.test(value)
+      ? Number.parseInt(value, 10)
+      : Number.NaN;
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new AppError(400, `${field} must contain positive integers`);
+  }
+  return id;
+}
+
+function parseQueryPriority(value: unknown): PriorityFilter | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    throw new AppError(400, 'priority must be provided once');
+  }
+  if (value === 'none') {
+    return 'none';
+  }
+  if (typeof value !== 'string' || !TASK_PRIORITIES.includes(value as TaskPriority)) {
+    throw new AppError(400, `priority must be one of: ${TASK_PRIORITIES.join(', ')}, none`);
+  }
+  return value as TaskPriority;
+}
+
+function parseTagIds(value: unknown, field = 'tagIds'): number[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new AppError(400, `${field} must be an array`);
   }
 
+  const ids = value.map((item) => parsePositiveInteger(item, field));
+
+  if (new Set(ids).size !== ids.length) {
+    throw new AppError(400, `${field} must be unique`);
+  }
+  return ids;
+}
+
+function parseQueryTagIds(value: unknown): number[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    throw new AppError(400, 'tagIds must be provided once');
+  }
+  if (typeof value !== 'string' || !/^[1-9]\d*(,[1-9]\d*)*$/.test(value)) {
+    throw new AppError(400, 'tagIds must be a comma-separated list');
+  }
+
+  const ids = value.split(',').map((item) => parsePositiveInteger(item, 'tagIds'));
+  if (new Set(ids).size !== ids.length) {
+    throw new AppError(400, 'tagIds must be unique');
+  }
+  return ids;
+}
+
+function parseQueryCategoryId(value: unknown): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    throw new AppError(400, 'categoryId must be provided once');
+  }
+  return parseCategoryIdValue(value);
+}
+
+function parseQueryStatus(value: unknown): TaskStatus | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    throw new AppError(400, 'status must be provided once');
+  }
+  if (typeof value !== 'string' || !TASK_STATUSES.includes(value as TaskStatus)) {
+    throw new AppError(400, `Status must be one of: ${TASK_STATUSES.join(', ')}`);
+  }
+  return value as TaskStatus;
+}
+
+export function parseTaskBody(body: unknown): TaskBody {
+  const payload = (body ?? {}) as Record<string, unknown>;
   const schedule = normalizeTaskSchedule(payload, {
     allowMissingPlannedDate: true,
     requireAllDay: false,
   });
   return {
-    title: typeof payload.title === 'string' ? payload.title : '',
-    categoryId,
+    title: parseTaskTitle(payload.title),
+    categoryId: parseCategoryIdValue(payload.categoryId),
     ...schedule,
+    priority: parsePriority(payload.priority) ?? null,
+    tagIds: parseTagIds(payload.tagIds),
+  };
+}
+
+export function parseTaskDetailsBody(body: unknown): TaskDetailsBody {
+  const payload = (body ?? {}) as Record<string, unknown>;
+  if (!Object.hasOwn(payload, 'title')) {
+    throw new AppError(400, 'title is required');
+  }
+  if (!Object.hasOwn(payload, 'categoryId')) {
+    throw new AppError(400, 'categoryId is required');
+  }
+  if (!Object.hasOwn(payload, 'tagIds')) {
+    throw new AppError(400, 'tagIds is required');
+  }
+  if (!Object.hasOwn(payload, 'priority')) {
+    throw new AppError(400, 'priority is required');
+  }
+
+  return {
+    title: parseTaskTitle(payload.title),
+    categoryId: parseCategoryIdValue(payload.categoryId),
+    tagIds: parseTagIds(payload.tagIds),
+    priority: parsePriority(payload.priority) ?? null,
   };
 }
 
@@ -96,9 +258,6 @@ export function parseTaskQuery(query: Record<string, unknown>): TaskQueryParams 
     throw new AppError(400, 'dateTo must be after dateFrom');
   }
 
-  const categoryIdValue = query.categoryId;
-  const parsedCategoryId =
-    typeof categoryIdValue === 'string' ? Number.parseInt(categoryIdValue, 10) : undefined;
   const scheduled = typeof query.scheduled === 'string' ? query.scheduled : undefined;
   if (scheduled && !['unscheduled', 'scheduled', 'all-day-without-time'].includes(scheduled)) {
     throw new AppError(400, 'scheduled must be one of: unscheduled, scheduled, all-day-without-time');
@@ -112,15 +271,12 @@ export function parseTaskQuery(query: Record<string, unknown>): TaskQueryParams 
     date,
     dateFrom,
     dateTo,
-    status: typeof query.status === 'string' && TASK_STATUSES.includes(query.status as TaskStatus)
-      ? (query.status as TaskStatus)
-      : undefined,
-    categoryId:
-      parsedCategoryId !== undefined && !Number.isNaN(parsedCategoryId)
-        ? parsedCategoryId
-        : undefined,
+    status: parseQueryStatus(query.status),
+    categoryId: parseQueryCategoryId(query.categoryId),
     scheduled: scheduled as ScheduledFilter | undefined,
     query: trimmedQuery || undefined,
+    priority: parseQueryPriority(query.priority),
+    tagIds: parseQueryTagIds(query.tagIds),
   };
 }
 
