@@ -12,7 +12,9 @@ vi.mock('../api/calendarApi', () => ({
     getUnscheduledTasks: vi.fn(),
     getAllDayWithoutTimeTasks: vi.fn(),
     createCalendarTask: vi.fn(),
+    updateTaskDetails: vi.fn(),
     updateTaskSchedule: vi.fn(),
+    deleteTask: vi.fn(),
     batchScheduleDate: vi.fn(),
     batchUnschedule: vi.fn(),
   },
@@ -458,6 +460,59 @@ describe('CalendarPanel', () => {
 
     expect(math).toHaveStyle({width: 'calc((100% - 4px) / 2)'});
     expect(english).toHaveStyle({width: 'calc((100% - 4px) / 2)'});
+  });
+
+  it('opens a timed task editor and saves task details with schedule', async () => {
+    vi.mocked(calendarApi.getCalendarTasks).mockResolvedValue([
+      {
+        id: 7,
+        userId: 1,
+        categoryId: 1,
+        title: '数学',
+        plannedDate: '2026-06-06',
+        allDay: false,
+        startAt: '2026-06-06T13:00:00.000',
+        endAt: '2026-06-06T14:00:00.000',
+        status: 'TODO',
+        priority: 'P1',
+        tagIds: [2, 3],
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
+    vi.mocked(calendarApi.getFocusSessions).mockResolvedValue([]);
+    vi.mocked(calendarApi.updateTaskSchedule).mockResolvedValue({id: 7} as never);
+    vi.mocked(calendarApi.updateTaskDetails).mockResolvedValue({id: 7} as never);
+
+    renderCalendarPanel({
+      categories: [
+        {id: 1, userId: 1, name: '工作', color: '#ef4444', sortOrder: 1, createdAt: '', updatedAt: ''},
+        {id: 2, userId: 1, name: '学习', color: '#3b82f6', sortOrder: 2, createdAt: '', updatedAt: ''},
+      ],
+    });
+
+    fireEvent.click(await screen.findByLabelText('2026-06-06 13:00-14:00 数学'));
+    expect(screen.getByRole('dialog', {name: '编辑日历任务'})).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('任务标题'), {target: {value: '高数'}});
+    fireEvent.change(screen.getByLabelText('任务分类'), {target: {value: '2'}});
+    fireEvent.change(screen.getByLabelText('开始时间'), {target: {value: '13:15'}});
+    fireEvent.change(screen.getByLabelText('结束时间'), {target: {value: '14:15'}});
+    fireEvent.click(screen.getByRole('button', {name: '保存'}));
+
+    await waitFor(() => expect(calendarApi.updateTaskSchedule).toHaveBeenCalledWith(7, {
+      plannedDate: '2026-06-06',
+      plannedEndDate: undefined,
+      startAt: '2026-06-06T13:15:00.000',
+      endAt: '2026-06-06T14:15:00.000',
+      allDay: false,
+    }));
+    expect(calendarApi.updateTaskDetails).toHaveBeenCalledWith(7, {
+      title: '高数',
+      categoryId: 2,
+      priority: 'P1',
+      tagIds: [2, 3],
+    });
   });
 
   it('renders identical-time timed tasks with lane gutters and title-first labels', async () => {

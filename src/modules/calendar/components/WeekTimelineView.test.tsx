@@ -22,6 +22,13 @@ const task = {
   updatedAt: '',
 } as const;
 
+const timedTask = {
+  ...task,
+  allDay: false,
+  startAt: '2026-06-06T13:00:00.000',
+  endAt: '2026-06-06T14:00:00.000',
+};
+
 function createDragData() {
   const values = new Map<string, string>();
   return {
@@ -213,6 +220,47 @@ describe('WeekTimelineView', () => {
     expect(onOpenQuickCreate).not.toHaveBeenCalled();
   });
 
+  it('opens the task editor when clicking a timed task', () => {
+    const onOpenTaskEditor = vi.fn();
+    renderWeek({
+      tasksByDate: {'2026-06-06': [timedTask]},
+      onOpenTaskEditor,
+    });
+
+    fireEvent.click(screen.getByLabelText('2026-06-06 13:00-14:00 写方案'));
+
+    expect(onOpenTaskEditor).toHaveBeenCalledWith(expect.objectContaining({
+      task: timedTask,
+      anchor: expect.objectContaining({x: expect.any(Number), y: expect.any(Number)}),
+    }));
+  });
+
+  it('does not open the task editor after timed task drag starts', () => {
+    const onOpenTaskEditor = vi.fn();
+    renderWeek({
+      tasksByDate: {'2026-06-06': [timedTask]},
+      onOpenTaskEditor,
+    });
+    const segment = screen.getByLabelText('2026-06-06 13:00-14:00 写方案');
+
+    fireEvent.dragStart(segment, {dataTransfer: createDragData()});
+    fireEvent.click(segment);
+
+    expect(onOpenTaskEditor).not.toHaveBeenCalled();
+  });
+
+  it('does not open the task editor from the resize handle', () => {
+    const onOpenTaskEditor = vi.fn();
+    renderWeek({
+      tasksByDate: {'2026-06-06': [timedTask]},
+      onOpenTaskEditor,
+    });
+
+    fireEvent.pointerDown(screen.getByRole('button', {name: '调整写方案时长'}));
+
+    expect(onOpenTaskEditor).not.toHaveBeenCalled();
+  });
+
   it('clears a timed quick-create pointer after pointerup on a different date', () => {
     const onOpenQuickCreate = vi.fn();
     renderWeek({enableQuickCreate: true, onOpenQuickCreate});
@@ -323,7 +371,7 @@ describe('WeekTimelineView', () => {
     });
   }
 
-  it('uses density height when converting a quick-create pointer offset', () => {
+  it('uses the clicked hour range for point quick create regardless of pointer offset', () => {
     const onOpenQuickCreate = vi.fn();
     renderWeek({enableQuickCreate: true, weekTimelineDensity: 'comfortable', onOpenQuickCreate});
     const slot = screen.getByLabelText('2026-06-06 09:00');
@@ -335,8 +383,10 @@ describe('WeekTimelineView', () => {
     });
 
     expect(onOpenQuickCreate).toHaveBeenCalledWith(expect.objectContaining({
-      startAt: '2026-06-06T09:30:00.000',
-      endAt: '2026-06-06T10:30:00.000',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      editableStartAt: '2026-06-06T09:00:00.000',
+      editableEndAt: '2026-06-06T10:00:00.000',
     }));
   });
 

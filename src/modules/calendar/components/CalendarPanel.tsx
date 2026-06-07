@@ -6,6 +6,7 @@ import {useSchedulingSidebarController} from '../controllers/useSchedulingSideba
 import {CalendarQuickCreatePopover} from './CalendarQuickCreatePopover';
 import {CalendarSurface} from './CalendarSurface';
 import {CalendarSettingsMenu} from './CalendarSettingsMenu';
+import {CalendarTaskPopover} from './CalendarTaskPopover';
 import {CalendarToolbar} from './CalendarToolbar';
 import {SchedulingSidebar} from './SchedulingSidebar';
 
@@ -92,6 +93,16 @@ export function CalendarPanel({categories, tags = [], styleContext, showToast, i
             categories={categories}
             onCancel={controller.closeQuickCreateDraft}
             onSubmit={controller.submitQuickCreateDraft}
+          />
+        )}
+        {controller.taskEditor && (
+          <CalendarTaskPopover
+            task={controller.taskEditor.task}
+            categories={categories}
+            anchor={controller.taskEditor.anchor}
+            onCancel={controller.closeTaskEditor}
+            onSave={controller.submitTaskEditor}
+            onDelete={controller.deleteTaskFromEditor}
           />
         )}
       </div>

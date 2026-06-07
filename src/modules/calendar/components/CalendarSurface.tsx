@@ -52,6 +52,7 @@ export function CalendarSurface({
           enableQuickCreate={enableQuickCreate}
           weekTimelineDensity={weekTimelineDensity}
           onOpenQuickCreate={onOpenQuickCreate}
+          onOpenTaskEditor={controller.openTaskEditor}
         />
       )}
       {controller.view === 'list' && (

@@ -48,6 +48,7 @@ interface WeekTimelineViewProps {
   enableQuickCreate?: boolean;
   weekTimelineDensity?: WeekTimelineDensity;
   onOpenQuickCreate?: (draft: CalendarQuickCreateDraft) => void;
+  onOpenTaskEditor?: (input: {task: Task; anchor: {x: number; y: number}}) => void;
 }
 
 interface ResizeState {
@@ -205,6 +206,7 @@ export function WeekTimelineView({
   enableQuickCreate = false,
   weekTimelineDensity = 'standard',
   onOpenQuickCreate = () => {},
+  onOpenTaskEditor = () => {},
 }: WeekTimelineViewProps) {
   const days = buildWeekDays(anchorDate);
   const hourHeight = hourHeightForDensity(weekTimelineDensity);
@@ -236,6 +238,8 @@ export function WeekTimelineView({
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
   const timeQuickCreatePointerRef = useRef<TimeQuickCreatePointerState | null>(null);
   const allDayQuickCreatePointerRef = useRef<AllDayQuickCreatePointerState | null>(null);
+  const taskPointerRef = useRef<{taskId: number; x: number; y: number} | null>(null);
+  const taskDragStartedRef = useRef(false);
 
   const clearQuickCreatePointers = useCallback(() => {
     timeQuickCreatePointerRef.current = null;
@@ -572,7 +576,12 @@ export function WeekTimelineView({
                       key={`${task.id}-${segment.date}-${segment.topMinutes}-${segment.endMinutes}`}
                       draggable
                       aria-label={taskSegmentAriaLabel({task, segment, focusMinutes: taskFocusMinutes})}
+                      onPointerDown={(event) => {
+                        taskPointerRef.current = {taskId: task.id, x: event.clientX, y: event.clientY};
+                        taskDragStartedRef.current = false;
+                      }}
                       onDragStart={(event) => {
+                        taskDragStartedRef.current = true;
                         const durationMinutes = taskDurationMinutes(task);
                         if (!durationMinutes) return;
                         writeCalendarDragPayload(event.dataTransfer, {
@@ -580,6 +589,19 @@ export function WeekTimelineView({
                           taskId: task.id,
                           durationMinutes,
                         });
+                      }}
+                      onClick={(event) => {
+                        const pointer = taskPointerRef.current;
+                        const moved = pointer?.taskId === task.id
+                          ? Math.abs(event.clientX - pointer.x) > 4 || Math.abs(event.clientY - pointer.y) > 4
+                          : false;
+
+                        if (taskDragStartedRef.current || moved) {
+                          taskDragStartedRef.current = false;
+                          return;
+                        }
+
+                        onOpenTaskEditor({task, anchor: {x: event.clientX, y: event.clientY}});
                       }}
                       className="group pointer-events-auto absolute z-10 min-w-0 overflow-hidden rounded-md px-1.5 py-1 text-[11px] font-semibold leading-tight text-white shadow-sm"
                       style={{
