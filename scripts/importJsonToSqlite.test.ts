@@ -110,6 +110,29 @@ function writeJsonFixture(jsonPath: string) {
   );
 }
 
+function writeTaggedJsonFixture(jsonPath: string, overrides: Record<string, unknown> = {}) {
+  fs.writeFileSync(
+    jsonPath,
+    JSON.stringify({
+      users: [{id: 1, username: 'demo', displayName: 'Demo User', createdAt: ''}],
+      categories: [{id: 1, userId: 1, name: '工作', color: '#3b82f6', sortOrder: 1, createdAt: '', updatedAt: ''}],
+      tags: [
+        {id: 1, userId: 1, name: '客户 A', createdAt: '', updatedAt: ''},
+        {id: 2, userId: 1, name: 'P 项目', createdAt: '', updatedAt: ''},
+      ],
+      tasks: [
+        {id: 1, userId: 1, categoryId: 1, title: '带标签任务', priority: 'P1', status: 'TODO', createdAt: '', updatedAt: ''},
+        {id: 2, userId: 1, categoryId: 1, title: '历史任务', status: 'TODO', createdAt: '', updatedAt: ''},
+      ],
+      taskTags: [{taskId: 1, tagId: 1, userId: 1, createdAt: ''}],
+      taskExecutionSessions: [],
+      dailyReports: [],
+      weeklyReviews: [],
+      ...overrides,
+    }),
+  );
+}
+
 describe('importJsonToSqlite', () => {
   it('imports JSON data into SQLite while preserving ids and relationships', () => {
     const {jsonPath, sqlitePath} = createTestFiles();
@@ -120,7 +143,9 @@ describe('importJsonToSqlite', () => {
     expect(result).toEqual({
       users: 1,
       categories: 1,
+      tags: 0,
       tasks: 1,
+      taskTags: 0,
       taskExecutionSessions: 1,
       dailyReports: 1,
       weeklyReviews: 1,
@@ -322,5 +347,74 @@ describe('importJsonToSqlite', () => {
     } finally {
       db.close();
     }
+  });
+
+  it('imports tags and task tag associations', () => {
+    const {jsonPath, sqlitePath} = createTestFiles();
+    writeTaggedJsonFixture(jsonPath);
+
+    const result = importJsonToSqlite({jsonPath, sqlitePath, force: true});
+
+    expect(result.tags).toBe(2);
+    expect(result.taskTags).toBe(1);
+  });
+
+  it('imports task priority values and defaults missing priority to null', () => {
+    const {jsonPath, sqlitePath} = createTestFiles();
+    writeTaggedJsonFixture(jsonPath);
+
+    importJsonToSqlite({jsonPath, sqlitePath, force: true});
+
+    const db = openSqliteClient(sqlitePath);
+    const rows = db.prepare('select id, priority from tasks order by id asc').all() as Array<{
+      id: number;
+      priority: string | null;
+    }>;
+    expect(rows).toEqual([
+      {id: 1, priority: 'P1'},
+      {id: 2, priority: null},
+    ]);
+    db.close();
+  });
+
+  it('rolls back orphan task tag imports', () => {
+    const {jsonPath, sqlitePath} = createTestFiles();
+    writeTaggedJsonFixture(jsonPath, {
+      tasks: [],
+      tags: [{id: 1, userId: 1, name: 'A', createdAt: '', updatedAt: ''}],
+      taskTags: [{taskId: 999, tagId: 1, userId: 1, createdAt: ''}],
+    });
+
+    expect(() => importJsonToSqlite({jsonPath, sqlitePath, force: true})).toThrow('Invalid taskTags association');
+  });
+
+  it('rolls back force clear and import in one transaction', () => {
+    const {jsonPath, sqlitePath} = createTestFiles();
+    writeTaggedJsonFixture(jsonPath);
+    importJsonToSqlite({jsonPath, sqlitePath, force: true});
+    writeTaggedJsonFixture(jsonPath, {
+      tasks: [],
+      tags: [{id: 1, userId: 1, name: 'A', createdAt: '', updatedAt: ''}],
+      taskTags: [{taskId: 999, tagId: 1, userId: 1, createdAt: ''}],
+    });
+
+    expect(() => importJsonToSqlite({jsonPath, sqlitePath, force: true})).toThrow('Invalid taskTags association');
+    const db = openSqliteClient(sqlitePath);
+    expect((db.prepare('select count(*) as count from tasks').get() as {count: number}).count).toBeGreaterThan(0);
+    db.close();
+  });
+
+  it('rejects cross-user task tag imports', () => {
+    const {jsonPath, sqlitePath} = createTestFiles();
+    writeTaggedJsonFixture(jsonPath, {
+      users: [
+        {id: 1, username: 'u1', displayName: 'U1', createdAt: ''},
+        {id: 2, username: 'u2', displayName: 'U2', createdAt: ''},
+      ],
+      tags: [{id: 1, userId: 2, name: '外部', createdAt: '', updatedAt: ''}],
+      taskTags: [{taskId: 1, tagId: 1, userId: 1, createdAt: ''}],
+    });
+
+    expect(() => importJsonToSqlite({jsonPath, sqlitePath, force: true})).toThrow('Invalid taskTags association');
   });
 });
