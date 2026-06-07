@@ -129,6 +129,7 @@ export default function AppShell() {
     tasks,
     allTasks,
     selectedDateSessions,
+    selectedDate,
     runningSession: focusSession.runningSession,
     focusTimeElapsed: focusSession.focusTimeElapsed,
   });

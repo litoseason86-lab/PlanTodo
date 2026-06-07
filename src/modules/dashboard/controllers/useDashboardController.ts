@@ -6,6 +6,7 @@ import {
   isCountedFocusSession,
   sumCountedFocusSessionSeconds,
 } from '../../../../shared/lib/focusSessions';
+import {partitionTodayExecutionTasks} from './todayTimelineFlow';
 
 interface TaskFocusArgs {
   taskId: number;
@@ -24,6 +25,7 @@ interface TodayCategoryFocusArgs {
 interface DashboardControllerArgs extends TodayCategoryFocusArgs {
   runningSession: TaskExecutionSession | null;
   focusTimeElapsed: number;
+  selectedDate: string;
 }
 
 export function getTaskFocusMinutes({
@@ -76,10 +78,16 @@ export function useDashboardController({
   selectedDateSessions,
   runningSession,
   focusTimeElapsed,
+  selectedDate,
 }: DashboardControllerArgs) {
   const todayCategoryFocusData = useMemo(
     () => buildTodayCategoryFocusData({categories, tasks, allTasks, selectedDateSessions}),
     [categories, tasks, allTasks, selectedDateSessions],
+  );
+
+  const todayPartition = useMemo(
+    () => partitionTodayExecutionTasks({date: selectedDate, tasks}),
+    [selectedDate, tasks],
   );
 
   const getTaskFocusMinutesForTask = useCallback(
@@ -96,5 +104,7 @@ export function useDashboardController({
   return {
     todayCategoryFocusData,
     getTaskFocusMinutes: getTaskFocusMinutesForTask,
+    todayTimelineFlow: todayPartition.timelineFlow,
+    todayTaskQueue: todayPartition.taskQueue,
   };
 }

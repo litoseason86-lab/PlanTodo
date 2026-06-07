@@ -1,6 +1,11 @@
+import {renderHook} from '@testing-library/react';
 import {describe, expect, it} from 'vitest';
 
-import {buildTodayCategoryFocusData, getTaskFocusMinutes} from './useDashboardController';
+import {
+  buildTodayCategoryFocusData,
+  getTaskFocusMinutes,
+  useDashboardController,
+} from './useDashboardController';
 
 const categories = [
   {
@@ -143,5 +148,45 @@ describe('useDashboardController helpers', () => {
         focusTimeElapsed: 0,
       }),
     ).toBe(5);
+  });
+
+  it('exposes today timeline flow and untimed queue', () => {
+    const timedTask = {
+      id: 10,
+      userId: 1,
+      categoryId: 1,
+      title: '定时任务',
+      plannedDate: '2026-06-07',
+      startAt: '2026-06-07T09:00:00.000',
+      endAt: '2026-06-07T10:00:00.000',
+      allDay: false,
+      status: 'TODO' as const,
+      priority: null,
+      tagIds: [] as number[],
+      createdAt: '',
+      updatedAt: '',
+    };
+    const untimedTask = {
+      ...timedTask,
+      id: 11,
+      title: '无时间任务',
+      startAt: undefined,
+      endAt: undefined,
+    };
+
+    const {result} = renderHook(() =>
+      useDashboardController({
+        categories,
+        tasks: [timedTask, untimedTask],
+        allTasks: [timedTask, untimedTask],
+        selectedDateSessions: [],
+        runningSession: null,
+        focusTimeElapsed: 0,
+        selectedDate: '2026-06-07',
+      }),
+    );
+
+    expect(result.current.todayTimelineFlow.map((item) => item.type)).toEqual(['task']);
+    expect(result.current.todayTaskQueue.map((task) => task.id)).toEqual([11]);
   });
 });
