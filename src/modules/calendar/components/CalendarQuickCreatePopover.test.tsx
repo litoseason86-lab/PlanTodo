@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe('CalendarQuickCreatePopover', () => {
-  it('renders timed draft range and submits title/category', async () => {
+  it('renders timed draft range and submits title/category with refined time', async () => {
     const onSubmit = vi.fn().mockResolvedValue({ok: true});
     render(
       <CalendarQuickCreatePopover
@@ -47,9 +47,36 @@ describe('CalendarQuickCreatePopover', () => {
     expect(screen.getByText('09:00 - 10:00')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('任务标题'), {target: {value: '写方案'}});
     fireEvent.change(screen.getByLabelText('任务分类'), {target: {value: '2'}});
+    fireEvent.change(screen.getByLabelText('开始时间'), {target: {value: '09:15'}});
+    fireEvent.change(screen.getByLabelText('结束时间'), {target: {value: '09:45'}});
     fireEvent.click(screen.getByRole('button', {name: '保存'}));
 
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({title: '写方案', categoryId: 2}));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
+      title: '写方案',
+      categoryId: 2,
+      startAt: '2026-06-06T09:15:00.000',
+      endAt: '2026-06-06T09:45:00.000',
+    }));
+  });
+
+  it('rejects timed quick-create edits outside editable bounds', () => {
+    const onSubmit = vi.fn();
+    render(
+      <CalendarQuickCreatePopover
+        draft={timedDraft}
+        categories={categories}
+        onCancel={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('任务标题'), {target: {value: '写方案'}});
+    fireEvent.change(screen.getByLabelText('开始时间'), {target: {value: '08:45'}});
+    fireEvent.change(screen.getByLabelText('结束时间'), {target: {value: '09:30'}});
+    fireEvent.click(screen.getByRole('button', {name: '保存'}));
+
+    expect(screen.getByText('只能在 09:00-10:00 内调整')).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('positions the popover using fixed viewport coordinates', () => {
@@ -101,6 +128,20 @@ describe('CalendarQuickCreatePopover', () => {
     );
 
     expect(screen.getByText('06-18 - 06-21')).toBeInTheDocument();
+  });
+
+  it('does not render time inputs for all-day quick create', () => {
+    render(
+      <CalendarQuickCreatePopover
+        draft={{kind: 'all-day', plannedDate: '2026-06-18', anchor: {x: 0, y: 0}}}
+        categories={categories}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText('开始时间')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('结束时间')).not.toBeInTheDocument();
   });
 
   it('blocks empty titles with inline error', () => {
@@ -209,7 +250,12 @@ describe('CalendarQuickCreatePopover', () => {
     fireEvent.change(screen.getByLabelText('任务标题'), {target: {value: '写方案'}});
     fireEvent.keyDown(screen.getByLabelText('任务标题'), {key: 'Enter'});
 
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({title: '写方案', categoryId: 1}));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
+      title: '写方案',
+      categoryId: 1,
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+    }));
   });
 
   it('blocks synchronous double submit from Enter then save click', async () => {

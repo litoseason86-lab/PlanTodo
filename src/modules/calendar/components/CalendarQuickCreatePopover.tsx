@@ -1,13 +1,18 @@
 import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 
 import type {Category} from '../../../../shared/domain/entities';
-import type {CalendarQuickCreateDraft} from '../controllers/weekTimelineInteraction';
+import {validateTimedRangeWithinBounds, type CalendarQuickCreateDraft} from '../controllers/weekTimelineInteraction';
 
 interface CalendarQuickCreatePopoverProps {
   draft: CalendarQuickCreateDraft;
   categories: Category[];
   onCancel: () => void;
-  onSubmit: (input: {title: string; categoryId: number}) => Promise<{ok: true} | {ok: false; message: string}>;
+  onSubmit: (input: {
+    title: string;
+    categoryId: number;
+    startAt?: string;
+    endAt?: string;
+  }) => Promise<{ok: true} | {ok: false; message: string}>;
 }
 
 const POPOVER_MARGIN_PX = 12;
@@ -21,6 +26,14 @@ function formatDraftRange(draft: CalendarQuickCreateDraft): string {
 
   const endDate = draft.plannedEndDate ?? draft.plannedDate;
   return `${draft.plannedDate.slice(5, 10)} - ${endDate.slice(5, 10)}`;
+}
+
+function timeValueFromLocalDateTime(value: string): string {
+  return value.slice(11, 16);
+}
+
+function makeDraftLocalDateTime(date: string, time: string): string {
+  return `${date}T${time}:00.000`;
 }
 
 function clampPopoverPosition(input: {
@@ -50,6 +63,8 @@ export function CalendarQuickCreatePopover({draft, categories, onCancel, onSubmi
   const submittingRef = useRef(false);
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState(() => categories[0]?.id ?? 0);
+  const [startTime, setStartTime] = useState(() => draft.kind === 'timed' ? timeValueFromLocalDateTime(draft.startAt) : '');
+  const [endTime, setEndTime] = useState(() => draft.kind === 'timed' ? timeValueFromLocalDateTime(draft.endAt) : '');
   const [error, setError] = useState(categories.length === 0 ? '请先创建分类' : '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [position, setPosition] = useState(() => clampPopoverPosition({
@@ -129,7 +144,37 @@ export function CalendarQuickCreatePopover({draft, categories, onCancel, onSubmi
     setIsSubmitting(true);
     setError('');
     try {
-      const result = await onSubmit({title: trimmedTitle, categoryId});
+      const submitInput: {
+        title: string;
+        categoryId: number;
+        startAt?: string;
+        endAt?: string;
+      } = {title: trimmedTitle, categoryId};
+
+      if (draft.kind === 'timed') {
+        const startAt = makeDraftLocalDateTime(draft.plannedDate, startTime);
+        const endAt = makeDraftLocalDateTime(draft.plannedDate, endTime);
+        const validation = validateTimedRangeWithinBounds({
+          startAt,
+          endAt,
+          editableStartAt: draft.editableStartAt,
+          editableEndAt: draft.editableEndAt,
+        });
+
+        if (!validation.ok) {
+          if (mountedRef.current && requestIdRef.current === requestId) {
+            setError(validation.message);
+            setIsSubmitting(false);
+            submittingRef.current = false;
+          }
+          return;
+        }
+
+        submitInput.startAt = startAt;
+        submitInput.endAt = endAt;
+      }
+
+      const result = await onSubmit(submitInput);
       if (mountedRef.current && requestIdRef.current === requestId && !result.ok) {
         setError(result.message);
       }
@@ -188,6 +233,34 @@ export function CalendarQuickCreatePopover({draft, categories, onCancel, onSubmi
             </option>
           ))}
         </select>
+        {draft.kind === 'timed' && (
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              aria-label="开始时间"
+              type="time"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-400"
+              value={startTime}
+              onChange={(event) => {
+                setStartTime(event.target.value);
+                if (error) {
+                  setError('');
+                }
+              }}
+            />
+            <input
+              aria-label="结束时间"
+              type="time"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-400"
+              value={endTime}
+              onChange={(event) => {
+                setEndTime(event.target.value);
+                if (error) {
+                  setError('');
+                }
+              }}
+            />
+          </div>
+        )}
       </div>
       {error && <p className="mt-2 text-xs font-bold text-red-600">{error}</p>}
       <div className="mt-4 flex justify-end gap-2">

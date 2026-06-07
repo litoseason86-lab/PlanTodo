@@ -434,6 +434,8 @@ describe('useCalendarController', () => {
       const resultValue = await result.current.submitQuickCreateDraft({
         title: '写方案',
         categoryId: 8,
+        startAt: '2026-06-06T09:15:00.000',
+        endAt: '2026-06-06T09:45:00.000',
       });
       expect(resultValue).toEqual({ok: true});
     });
@@ -443,8 +445,8 @@ describe('useCalendarController', () => {
       categoryId: 8,
       plannedDate: '2026-06-06',
       plannedEndDate: undefined,
-      startAt: '2026-06-06T09:00:00.000',
-      endAt: '2026-06-06T10:00:00.000',
+      startAt: '2026-06-06T09:15:00.000',
+      endAt: '2026-06-06T09:45:00.000',
       tagIds: [],
       priority: null,
       allDay: false,

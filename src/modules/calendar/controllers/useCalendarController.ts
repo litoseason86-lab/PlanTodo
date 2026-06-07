@@ -141,7 +141,12 @@ export function useCalendarController({categories, initialDate, showToast, onMut
     }
   }
 
-  async function submitQuickCreateDraft(input: {title: string; categoryId: number}): Promise<{ok: true} | {ok: false; message: string}> {
+  async function submitQuickCreateDraft(input: {
+    title: string;
+    categoryId: number;
+    startAt?: string;
+    endAt?: string;
+  }): Promise<{ok: true} | {ok: false; message: string}> {
     if (!quickCreateDraft) {
       return {ok: false, message: '没有可创建的任务'};
     }
@@ -166,13 +171,16 @@ export function useCalendarController({categories, initialDate, showToast, onMut
           allDay: true,
         });
       } else {
+        const startAt = input.startAt ?? draft.startAt;
+        const endAt = input.endAt ?? draft.endAt;
+
         await calendarApi.createCalendarTask({
           title,
           categoryId: input.categoryId,
           plannedDate: draft.plannedDate,
           plannedEndDate: undefined,
-          startAt: draft.startAt,
-          endAt: draft.endAt,
+          startAt,
+          endAt,
           tagIds: [],
           priority: null,
           allDay: false,
