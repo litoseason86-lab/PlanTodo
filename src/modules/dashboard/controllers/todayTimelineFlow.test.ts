@@ -138,6 +138,55 @@ describe('todayTimelineFlow', () => {
     })).toEqual([]);
   });
 
+  it('ignores tasks and selected dates with rolled invalid ISO calendar dates', () => {
+    expect(buildTodayTimelineFlow({
+      date: '2026-02-31',
+      tasks: [
+        {
+          ...timedTask(1, '09:00', '10:00'),
+          startAt: '2026-02-31T09:00:00.000',
+          endAt: '2026-02-31T10:00:00.000',
+        },
+      ],
+    })).toEqual([]);
+
+    expect(buildTodayTimelineFlow({
+      date: '2026-06-07',
+      tasks: [
+        {
+          ...timedTask(2, '09:00', '10:00'),
+          startAt: '2026-02-31T09:00:00.000',
+          endAt: '2026-06-07T10:00:00.000',
+        },
+        {
+          ...timedTask(3, '09:00', '10:00'),
+          startAt: '2026-06-07T09:00:00.000',
+          endAt: '2026-02-31T10:00:00.000',
+        },
+      ],
+    })).toEqual([]);
+  });
+
+  it('sorts shuffled timed tasks by start, end, and task id', () => {
+    const result = buildTodayTimelineFlow({
+      date: '2026-06-07',
+      tasks: [
+        timedTask(3, '09:00', '10:00'),
+        timedTask(4, '10:30', '11:00'),
+        timedTask(1, '09:00', '10:00'),
+        timedTask(2, '09:00', '09:30'),
+      ],
+    });
+
+    expect(result).toEqual([
+      {type: 'task', taskId: 2, startMinutes: 540, endMinutes: 570, durationMinutes: 30},
+      {type: 'task', taskId: 1, startMinutes: 540, endMinutes: 600, durationMinutes: 60},
+      {type: 'task', taskId: 3, startMinutes: 540, endMinutes: 600, durationMinutes: 60},
+      {type: 'gap', startMinutes: 600, endMinutes: 630, durationMinutes: 30},
+      {type: 'task', taskId: 4, startMinutes: 630, endMinutes: 660, durationMinutes: 30},
+    ]);
+  });
+
   it('partitions invalid timed intervals into the queue instead of the flow', () => {
     const invalid = {
       ...timedTask(1, '09:00', '10:00'),

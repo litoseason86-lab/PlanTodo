@@ -1,5 +1,6 @@
 import type {Task} from '../../../../shared/domain/entities';
 import type {TaskStatus} from '../../../../shared/domain/status';
+import {isIsoDateString} from '../../../../shared/lib/date';
 
 const MINUTES_PER_DAY = 24 * 60;
 const MINIMUM_GAP_MINUTES = 15;
@@ -55,11 +56,14 @@ interface MinuteRange {
 }
 
 function dateDayIndex(date: string): number | null {
+  if (!isIsoDateString(date)) {
+    return null;
+  }
+
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   if (!match) {
     return null;
   }
-
   const [, year, month, day] = match;
   const value = Date.UTC(Number(year), Number(month) - 1, Number(day));
 
