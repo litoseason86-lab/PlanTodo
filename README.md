@@ -46,3 +46,5 @@ JSON_DB_PATH=data/db.json
 ```
 
 SQLite 使用 `better-sqlite3`，启动时会自动执行 schema migration。JSON 到 SQLite 的历史数据迁移可通过 `scripts/importJsonToSqlite.ts` 独立执行。
+
+用中文写文档
