@@ -52,6 +52,10 @@ function dispatchWindowPointerCancel(clientY = 0) {
   window.dispatchEvent(new MouseEvent('pointercancel', {bubbles: true, clientY}));
 }
 
+function dispatchWindowBlur() {
+  window.dispatchEvent(new Event('blur'));
+}
+
 function dispatchElementPointerDown(element: Element, clientY: number, clientX = 0) {
   element.dispatchEvent(new MouseEvent('pointerdown', {bubbles: true, clientX, clientY}));
 }
@@ -207,6 +211,21 @@ describe('WeekTimelineView', () => {
     expect(onOpenQuickCreate).not.toHaveBeenCalled();
   });
 
+  it('clears a timed quick-create pointer after pointer cancel', () => {
+    const onOpenQuickCreate = vi.fn();
+    renderWeek({enableQuickCreate: true, onOpenQuickCreate});
+    const slot = screen.getByLabelText('2026-06-06 09:00');
+    mockElementRect(slot, {top: 100, height: 64});
+
+    act(() => {
+      dispatchElementPointerDown(slot, 100, 20);
+      dispatchWindowPointerCancel(100);
+      dispatchElementPointerUp(slot, 100, 20);
+    });
+
+    expect(onOpenQuickCreate).not.toHaveBeenCalled();
+  });
+
   it('clears an all-day quick-create pointer after window pointerup', () => {
     const onOpenQuickCreate = vi.fn();
     renderWeek({enableQuickCreate: true, onOpenQuickCreate});
@@ -322,6 +341,34 @@ describe('WeekTimelineView', () => {
     });
     act(() => {
       dispatchWindowPointerCancel(100);
+      dispatchWindowPointerUp(144);
+    });
+
+    expect(onResizeTimedTask).not.toHaveBeenCalled();
+  });
+
+  it('clears resize state on window blur without resizing', () => {
+    const onResizeTimedTask = vi.fn().mockResolvedValue(true);
+    renderWeek({
+      onResizeTimedTask,
+      tasksByDate: {
+        '2026-06-06': [{
+          ...task,
+          id: 2,
+          title: '时间段任务',
+          plannedDate: '2026-06-06',
+          allDay: false,
+          startAt: '2026-06-06T09:00:00.000',
+          endAt: '2026-06-06T10:00:00.000',
+        }],
+      },
+    });
+
+    act(() => {
+      dispatchElementPointerDown(screen.getByLabelText('调整时间段任务时长'), 100);
+    });
+    act(() => {
+      dispatchWindowBlur();
       dispatchWindowPointerUp(144);
     });
 
