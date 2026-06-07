@@ -1,7 +1,17 @@
 import type {Task} from '../../../../shared/domain/entities';
+import type {TaskStatus} from '../../../../shared/domain/status';
 
 const MINUTES_PER_DAY = 24 * 60;
 const MINIMUM_GAP_MINUTES = 15;
+
+export interface TodayTimedTaskInput {
+  id: number;
+  title: string;
+  startAt?: string;
+  endAt?: string;
+  allDay: boolean;
+  status: TaskStatus;
+}
 
 export interface TodayTimelineTaskItem {
   type: 'task';
@@ -22,6 +32,11 @@ export type TodayTimelineFlowItem = TodayTimelineTaskItem | TodayTimelineGapItem
 
 interface BuildTodayTimelineFlowInput {
   date: string;
+  tasks: TodayTimedTaskInput[];
+}
+
+interface PartitionTodayExecutionTasksInput {
+  date: string;
   tasks: Task[];
 }
 
@@ -31,7 +46,7 @@ export interface TodayExecutionTaskPartition {
 }
 
 interface VisibleTaskSegment extends TodayTimelineTaskItem {
-  task: Task;
+  task: TodayTimedTaskInput;
 }
 
 interface MinuteRange {
@@ -79,7 +94,7 @@ function localDateTimeMinuteValue(value: string): number | null {
   return dayIndex * MINUTES_PER_DAY + hourValue * 60 + minuteValue;
 }
 
-function visibleTaskSegment(date: string, task: Task): VisibleTaskSegment | null {
+function visibleTaskSegment(date: string, task: TodayTimedTaskInput): VisibleTaskSegment | null {
   if (task.allDay || !task.startAt || !task.endAt) {
     return null;
   }
@@ -189,7 +204,7 @@ function buildFlowFromSegments(segments: VisibleTaskSegment[]): TodayTimelineFlo
   ].sort(compareFlowItems);
 }
 
-function extractVisibleTaskSegments(date: string, tasks: Task[]): VisibleTaskSegment[] {
+function extractVisibleTaskSegments(date: string, tasks: TodayTimedTaskInput[]): VisibleTaskSegment[] {
   return tasks
     .map((task) => visibleTaskSegment(date, task))
     .filter((segment): segment is VisibleTaskSegment => segment !== null);
@@ -205,7 +220,7 @@ export function buildTodayTimelineFlow({
 export function partitionTodayExecutionTasks({
   date,
   tasks,
-}: BuildTodayTimelineFlowInput): TodayExecutionTaskPartition {
+}: PartitionTodayExecutionTasksInput): TodayExecutionTaskPartition {
   const visibleSegments = extractVisibleTaskSegments(date, tasks);
   const timelineTaskIds = new Set(visibleSegments.map((segment) => segment.taskId));
 

@@ -4,8 +4,17 @@ import {
   buildTodayTimelineFlow,
   partitionTodayExecutionTasks,
 } from './todayTimelineFlow';
+import type {TodayTimedTaskInput} from './todayTimelineFlow';
 
-function timedTask(id: number, start: string, end: string) {
+function timedTask(id: number, start: string, end: string): TodayTimedTaskInput & {
+  userId: number;
+  categoryId: number;
+  plannedDate: string;
+  priority: null;
+  tagIds: number[];
+  createdAt: string;
+  updatedAt: string;
+} {
   return {
     id,
     userId: 1,
@@ -127,6 +136,24 @@ describe('todayTimelineFlow', () => {
       date: '2026-06-07',
       tasks: [invalid],
     })).toEqual([]);
+  });
+
+  it('partitions invalid timed intervals into the queue instead of the flow', () => {
+    const invalid = {
+      ...timedTask(1, '09:00', '10:00'),
+      startAt: '2026-06-07T11:00:00.000',
+      endAt: '2026-06-07T10:00:00.000',
+    };
+
+    const partition = partitionTodayExecutionTasks({
+      date: '2026-06-07',
+      tasks: [timedTask(2, '09:00', '10:00'), invalid],
+    });
+
+    expect(partition.timelineFlow).toEqual([
+      {type: 'task', taskId: 2, startMinutes: 540, endMinutes: 600, durationMinutes: 60},
+    ]);
+    expect(partition.taskQueue.map((task) => task.id)).toEqual([1]);
   });
 
   it('clips cross-day tasks to the selected date before building flow', () => {
