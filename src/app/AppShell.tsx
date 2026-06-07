@@ -217,6 +217,8 @@ export default function AppShell() {
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
             todayCategoryFocusData={dashboardController.todayCategoryFocusData}
+            todayTimelineFlow={dashboardController.todayTimelineFlow}
+            todayTaskQueue={dashboardController.todayTaskQueue}
             todayQuickCreate={todayQuickCreateController}
             handleUpdateTaskStatus={taskActions.handleUpdateTaskStatus}
             handleStartSession={focusSession.handleStartSession}
