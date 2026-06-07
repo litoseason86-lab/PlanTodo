@@ -1,4 +1,4 @@
-import {Calendar, GripVertical, Trash2} from 'lucide-react';
+import {Calendar, Edit3, GripVertical, Trash2} from 'lucide-react';
 
 import type {Category, Task} from '../../../../shared/domain/entities';
 import type {TaskStatus} from '../../../../shared/domain/status';
@@ -15,7 +15,8 @@ interface TaskListItemProps {
   category?: Category;
   handleUpdateTaskStatus: (id: number, status: TaskStatus) => void;
   handleStartSession: (task: Task) => void;
-  handleDeleteTask: (task: Task) => void;
+  handleDeleteTask: (taskId: number) => void;
+  onEditTask: (task: Task) => void;
 }
 
 function writeTaskListDragPayload(dataTransfer: DataTransfer, task: Task): void {
@@ -38,6 +39,7 @@ export function TaskListItem({
   handleUpdateTaskStatus,
   handleStartSession,
   handleDeleteTask,
+  onEditTask,
 }: TaskListItemProps) {
   const isComplete = task.status === 'DONE';
 
@@ -98,6 +100,7 @@ export function TaskListItem({
 
         {!isComplete && (
           <button
+            type="button"
             onClick={() => handleStartSession(task)}
             className="px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all"
             style={{color: styleContext.primary, backgroundColor: styleContext.primaryLight}}
@@ -110,9 +113,19 @@ export function TaskListItem({
 
         <button
           type="button"
+          aria-label={`编辑任务 ${task.title}`}
+          title="编辑任务"
+          onClick={() => onEditTask(task)}
+          className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+        </button>
+
+        <button
+          type="button"
           aria-label={`删除任务 ${task.title}`}
           title="删除任务"
-          onClick={() => handleDeleteTask(task)}
+          onClick={() => handleDeleteTask(task.id)}
           className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
         >
           <Trash2 className="w-3.5 h-3.5" />

@@ -1,10 +1,8 @@
 import {useState} from 'react';
-import type React from 'react';
 
-import type {Category, Task} from '../../../../shared/domain/entities';
-import type {TaskStatus} from '../../../../shared/domain/status';
 import {EmbeddedCalendarPanel} from '../../calendar/components/EmbeddedCalendarPanel';
-import type {CreateTaskScheduleOverride} from '../controllers/useTaskActions';
+import type {TasksPanelController} from '../controllers/useTasksPanelController';
+import {TaskBasicInfoModal} from './TaskBasicInfoModal';
 import {TaskCreateForm} from './TaskCreateForm';
 import {TaskList} from './TaskList';
 
@@ -14,80 +12,26 @@ interface TasksPanelProps {
     primaryLight: string;
     secondary: string;
   };
-  categories: Category[];
-  allTasks: Task[];
-  filteredTaskItems: Task[];
-  taskFormTitle: string;
-  taskFormCategory: number;
-  taskFormDate: string;
-  taskFormUnscheduled: boolean;
-  taskFilterCategory: string;
-  taskFilterStatus: string;
-  taskFilterDateScope: 'today' | 'seven-days' | 'all' | 'unscheduled';
-  setTaskFormTitle: (value: string) => void;
-  setTaskFormCategory: (value: number) => void;
-  setTaskFormDate: (value: string) => void;
-  setTaskFormUnscheduled: (value: boolean) => void;
-  setTaskFilterCategory: (value: string) => void;
-  setTaskFilterStatus: (value: string) => void;
-  setTaskFilterDateScope: (value: 'today' | 'seven-days' | 'all' | 'unscheduled') => void;
-  showToast: (message: string, type?: 'success' | 'error') => void;
-  selectedDate: string;
-  refreshAllTasks: () => Promise<Task[]>;
-  loadTasksForSelectedDate: () => Promise<unknown>;
-  handleCreateTask: (event?: React.FormEvent, scheduleOverride?: CreateTaskScheduleOverride) => void;
-  handleUpdateTaskStatus: (id: number, status: TaskStatus) => void;
-  handleStartSession: (task: Task) => void;
-  handleDeleteTask: (task: Task) => void;
+  controller: TasksPanelController;
 }
 
-export function TasksPanel({
-  styleContext,
-  categories,
-  allTasks,
-  filteredTaskItems,
-  taskFormTitle,
-  taskFormCategory,
-  taskFormDate,
-  taskFormUnscheduled,
-  taskFilterCategory,
-  taskFilterStatus,
-  taskFilterDateScope,
-  setTaskFormTitle,
-  setTaskFormCategory,
-  setTaskFormDate,
-  setTaskFormUnscheduled,
-  setTaskFilterCategory,
-  setTaskFilterStatus,
-  setTaskFilterDateScope,
-  showToast,
-  selectedDate,
-  refreshAllTasks,
-  loadTasksForSelectedDate,
-  handleCreateTask,
-  handleUpdateTaskStatus,
-  handleStartSession,
-  handleDeleteTask,
-}: TasksPanelProps) {
+export function TasksPanel({styleContext, controller}: TasksPanelProps) {
   const [calendarVisible, setCalendarVisible] = useState(false);
 
   const taskList = (
     <TaskList
       styleContext={styleContext}
-      categories={categories}
-      allTasks={allTasks}
-      filteredTaskItems={filteredTaskItems}
+      categories={controller.categories}
+      tags={controller.tags}
+      allTasks={controller.allTasks}
+      filteredTaskItems={controller.filteredTaskItems}
       calendarVisible={calendarVisible}
-      taskFilterCategory={taskFilterCategory}
-      taskFilterStatus={taskFilterStatus}
-      taskFilterDateScope={taskFilterDateScope}
-      setTaskFilterCategory={setTaskFilterCategory}
-      setTaskFilterStatus={setTaskFilterStatus}
-      setTaskFilterDateScope={setTaskFilterDateScope}
+      filters={controller.filters}
       onToggleCalendar={() => setCalendarVisible((visible) => !visible)}
-      handleUpdateTaskStatus={handleUpdateTaskStatus}
-      handleStartSession={handleStartSession}
-      handleDeleteTask={handleDeleteTask}
+      handleUpdateTaskStatus={controller.statusActions.updateTaskStatus}
+      handleStartSession={controller.statusActions.startSession}
+      handleDeleteTask={controller.mutations.deleteTask}
+      onEditTask={controller.openEditTask}
     />
   );
 
@@ -104,33 +48,47 @@ export function TasksPanel({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <TaskCreateForm
           styleContext={styleContext}
-          categories={categories}
-          taskFormTitle={taskFormTitle}
-          taskFormCategory={taskFormCategory}
-          taskFormDate={taskFormDate}
-          taskFormUnscheduled={taskFormUnscheduled}
-          setTaskFormTitle={setTaskFormTitle}
-          setTaskFormCategory={setTaskFormCategory}
-          setTaskFormDate={setTaskFormDate}
-          setTaskFormUnscheduled={setTaskFormUnscheduled}
-          handleCreateTask={handleCreateTask}
+          categories={controller.categories}
+          tags={controller.tags}
+          taskFormTitle={controller.createDraft.title}
+          taskFormCategory={controller.createDraft.categoryId}
+          taskFormDate={controller.createDraft.plannedDate}
+          taskFormUnscheduled={controller.createDraft.unscheduled}
+          selectedTagIds={controller.createDraft.tagIds}
+          priority={controller.createDraft.priority}
+          setTaskFormTitle={controller.createDraft.setTitle}
+          setTaskFormCategory={controller.createDraft.setCategoryId}
+          setTaskFormDate={controller.createDraft.setPlannedDate}
+          setTaskFormUnscheduled={controller.createDraft.setUnscheduled}
+          onTagIdsChange={controller.createDraft.setTagIds}
+          onPriorityChange={controller.createDraft.setPriority}
+          onCreateTag={controller.tagActions.createTag}
+          handleCreateTask={controller.mutations.createTask}
         />
 
         {calendarVisible ? (
           <div className="lg:col-span-2 grid grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] gap-4">
             {taskList}
             <EmbeddedCalendarPanel
-              categories={categories}
-              initialDate={selectedDate}
-              showToast={showToast}
-              onMutationSuccess={async () => {
-                await refreshAllTasks();
-                await loadTasksForSelectedDate();
-              }}
+              categories={controller.categories}
+              initialDate={controller.calendar.selectedDate}
+              showToast={controller.calendar.showToast}
+              onMutationSuccess={controller.calendar.onMutationSuccess}
             />
           </div>
         ) : taskList}
       </div>
+
+      {controller.editDraft.task && (
+        <TaskBasicInfoModal
+          task={controller.editDraft.task}
+          categories={controller.categories}
+          tags={controller.tags}
+          onCreateTag={controller.tagActions.createTag}
+          onSave={controller.mutations.updateTaskDetails}
+          onClose={controller.closeEditTask}
+        />
+      )}
     </div>
   );
 }

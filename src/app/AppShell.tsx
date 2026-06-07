@@ -13,6 +13,7 @@ import {WeeklyReviewPanel} from '../modules/reports/components/WeeklyReviewPanel
 import {type AppTab} from './navigation';
 import {THEME_STYLES, type ThemeId} from './theme';
 import {useTaskActions} from '../modules/tasks/controllers/useTaskActions';
+import {useTasksPanelController} from '../modules/tasks/controllers/useTasksPanelController';
 import {TasksPanel} from '../modules/tasks/components/TasksPanel';
 import {AppHeader} from './components/AppHeader';
 import {AppToast} from './components/AppToast';
@@ -36,6 +37,7 @@ export default function AppShell() {
   const [activeTheme, setActiveTheme] = useState<ThemeId>('peach');
   const {
     categories,
+    tags,
     tasks,
     selectedDateSessions,
     allTasks,
@@ -43,6 +45,7 @@ export default function AppShell() {
     selectedDate,
     setSelectedDate,
     refreshCategories,
+    refreshTags,
     refreshAllTasks,
     loadTasksForSelectedDate,
     loadMetaData,
@@ -80,6 +83,33 @@ export default function AppShell() {
     refreshAllTasks,
     loadDailyStats: reportStats.loadDailyStats,
     loadWeeklyStats: reportStats.loadWeeklyStats,
+  });
+  const tasksPanelController = useTasksPanelController({
+    categories,
+    tags,
+    allTasks,
+    selectedDate,
+    setLoading,
+    showToast,
+    refreshTags,
+    refreshAllTasks,
+    loadTasksForSelectedDate,
+    stopRunningSessionForTask: async (taskId) => {
+      if (focusSession.runningSession?.taskId === taskId) {
+        focusSession.setRunningSession(null);
+      }
+      if (focusSession.lastFinishedSessionTask?.id === taskId) {
+        focusSession.setLastFinishedSessionTask(null);
+      }
+    },
+    refreshReports: async () => {
+      await Promise.all([
+        reportStats.loadDailyStats(),
+        reportStats.loadWeeklyStats(),
+      ]);
+    },
+    updateTaskStatus: taskActions.handleUpdateTaskStatus,
+    startSession: focusSession.handleStartSession,
   });
   const dashboardController = useDashboardController({
     categories,
@@ -190,31 +220,7 @@ export default function AppShell() {
         {activeTab === 'tasks' && (
           <TasksPanel
             styleContext={{primary: styleContext.primary, primaryLight: styleContext.primaryLight, secondary: styleContext.secondary}}
-            categories={categories}
-            allTasks={allTasks}
-            filteredTaskItems={taskActions.filteredTaskItems}
-            taskFormTitle={taskActions.taskFormTitle}
-            taskFormCategory={taskActions.taskFormCategory}
-            taskFormDate={taskActions.taskFormDate}
-            taskFormUnscheduled={taskActions.taskFormUnscheduled}
-            taskFilterCategory={taskActions.taskFilterCategory}
-            taskFilterStatus={taskActions.taskFilterStatus}
-            taskFilterDateScope={taskActions.taskFilterDateScope}
-            setTaskFormTitle={taskActions.setTaskFormTitle}
-            setTaskFormCategory={taskActions.setTaskFormCategory}
-            setTaskFormDate={taskActions.setTaskFormDate}
-            setTaskFormUnscheduled={taskActions.setTaskFormUnscheduled}
-            setTaskFilterCategory={taskActions.setTaskFilterCategory}
-            setTaskFilterStatus={taskActions.setTaskFilterStatus}
-            setTaskFilterDateScope={taskActions.setTaskFilterDateScope}
-            showToast={showToast}
-            selectedDate={selectedDate}
-            refreshAllTasks={refreshAllTasks}
-            loadTasksForSelectedDate={loadTasksForSelectedDate}
-            handleCreateTask={taskActions.handleCreateTask}
-            handleUpdateTaskStatus={taskActions.handleUpdateTaskStatus}
-            handleStartSession={focusSession.handleStartSession}
-            handleDeleteTask={taskActions.handleDeleteTask}
+            controller={tasksPanelController}
           />
         )}
         {activeTab === 'categories' && (

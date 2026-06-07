@@ -1,11 +1,13 @@
 import {ListTodo} from 'lucide-react';
 
-import type {Category, Task} from '../../../../shared/domain/entities';
+import type {Category, Tag, Task} from '../../../../shared/domain/entities';
+import type {TaskPriority} from '../../../../shared/domain/status';
 import type {TaskStatus} from '../../../../shared/domain/status';
 import {TaskFilterBar} from './TaskFilterBar';
 import {TaskListItem} from './TaskListItem';
 
 type TaskFilterDateScope = 'today' | 'seven-days' | 'all' | 'unscheduled';
+type TaskPriorityFilter = 'all' | 'none' | TaskPriority;
 
 interface TaskListProps {
   styleContext: {
@@ -14,50 +16,64 @@ interface TaskListProps {
     secondary: string;
   };
   categories: Category[];
+  tags: Tag[];
   allTasks: Task[];
   filteredTaskItems: Task[];
   calendarVisible: boolean;
-  taskFilterCategory: string;
-  taskFilterStatus: string;
-  taskFilterDateScope: TaskFilterDateScope;
-  setTaskFilterCategory: (value: string) => void;
-  setTaskFilterStatus: (value: string) => void;
-  setTaskFilterDateScope: (value: TaskFilterDateScope) => void;
+  filters: {
+    category: string;
+    status: 'all' | TaskStatus;
+    dateScope: TaskFilterDateScope;
+    tagIds: number[];
+    priority: TaskPriorityFilter;
+    query: string;
+    setCategory: (value: string) => void;
+    setStatus: (value: 'all' | TaskStatus) => void;
+    setDateScope: (value: TaskFilterDateScope) => void;
+    setTagIds: (value: number[]) => void;
+    setPriority: (value: TaskPriorityFilter) => void;
+    setQuery: (value: string) => void;
+  };
   onToggleCalendar: () => void;
   handleUpdateTaskStatus: (id: number, status: TaskStatus) => void;
   handleStartSession: (task: Task) => void;
-  handleDeleteTask: (task: Task) => void;
+  handleDeleteTask: (taskId: number) => void;
+  onEditTask: (task: Task) => void;
 }
 
 export function TaskList({
   styleContext,
   categories,
+  tags,
   allTasks,
   filteredTaskItems,
   calendarVisible,
-  taskFilterCategory,
-  taskFilterStatus,
-  taskFilterDateScope,
-  setTaskFilterCategory,
-  setTaskFilterStatus,
-  setTaskFilterDateScope,
+  filters,
   onToggleCalendar,
   handleUpdateTaskStatus,
   handleStartSession,
   handleDeleteTask,
+  onEditTask,
 }: TaskListProps) {
   return (
     <div className="lg:col-span-2 space-y-4">
       <TaskFilterBar
         categories={categories}
+        tags={tags}
         filteredCount={filteredTaskItems.length}
         calendarVisible={calendarVisible}
-        taskFilterCategory={taskFilterCategory}
-        taskFilterStatus={taskFilterStatus}
-        taskFilterDateScope={taskFilterDateScope}
-        setTaskFilterCategory={setTaskFilterCategory}
-        setTaskFilterStatus={setTaskFilterStatus}
-        setTaskFilterDateScope={setTaskFilterDateScope}
+        taskFilterCategory={filters.category}
+        taskFilterStatus={filters.status}
+        taskFilterDateScope={filters.dateScope}
+        selectedTagIds={filters.tagIds}
+        priority={filters.priority}
+        query={filters.query}
+        setTaskFilterCategory={filters.setCategory}
+        setTaskFilterStatus={filters.setStatus}
+        setTaskFilterDateScope={filters.setDateScope}
+        onTagIdsChange={filters.setTagIds}
+        onPriorityChange={filters.setPriority}
+        onQueryChange={filters.setQuery}
         onToggleCalendar={onToggleCalendar}
       />
 
@@ -72,6 +88,7 @@ export function TaskList({
               handleUpdateTaskStatus={handleUpdateTaskStatus}
               handleStartSession={handleStartSession}
               handleDeleteTask={handleDeleteTask}
+              onEditTask={onEditTask}
             />
           ))}
 
