@@ -64,7 +64,16 @@ describe('calendarApi', () => {
 
     await calendarApi.createCalendarTask(payload);
 
-    expect(tasksApi.createTask).toHaveBeenCalledWith(payload);
+    expect(tasksApi.createTask).toHaveBeenCalledWith({
+      title: '写方案',
+      categoryId: 1,
+      plannedDate: '2026-06-06',
+      startAt: '2026-06-06T09:00:00.000',
+      endAt: '2026-06-06T10:00:00.000',
+      allDay: false,
+      priority: null,
+      tagIds: [],
+    });
   });
 
   it('forwards the full cross-day all-day task creation payload to tasks API', async () => {
@@ -81,6 +90,14 @@ describe('calendarApi', () => {
 
     await calendarApi.createCalendarTask(payload);
 
-    expect(tasksApi.createTask).toHaveBeenCalledWith(payload);
+    expect(tasksApi.createTask).toHaveBeenCalledWith({
+      title: '跨天安排',
+      categoryId: 1,
+      plannedDate: '2026-06-06',
+      plannedEndDate: '2026-06-08',
+      allDay: true,
+      priority: null,
+      tagIds: [],
+    });
   });
 });
